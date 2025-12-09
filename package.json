@@ -1,0 +1,16 @@
+{
+  "name": "nodejs-training",
+  "version": "1.0.0",
+  "description": "A simple Node.js training project to learn the fundamentals",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "simple-api": "node simple-api.js"
+
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
