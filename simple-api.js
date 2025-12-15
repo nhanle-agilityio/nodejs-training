@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -7,16 +7,16 @@ const PORT = process.env.PORT || 4000;
 app.use(express.json());
 
 // Single demo endpoint
-app.get('/api/hello', (req, res) => {
+app.get("/api/hello", (req, res) => {
   res.json({
-    message: 'Hello from the simple API for testing!',
+    message: "Hello from the simple API for testing!",
     timestamp: new Date().toISOString(),
   });
 });
 
 // Fallback for unknown routes
 app.use((req, res) => {
-  res.status(404).json({ message: 'Not found' });
+  res.status(404).json({ message: "Not found" });
 });
 
 app.listen(PORT, () => {
