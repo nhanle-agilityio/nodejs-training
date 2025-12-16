@@ -1,0 +1,86 @@
+Statistical profiling result from isolate-0x7a2b000-104629-v8.log, (1565 ticks, 135 unaccounted, 0 excluded).
+
+ [Shared libraries]:
+   ticks  total  nonlib   name
+      1    0.1%          /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
+
+ [JavaScript]:
+   ticks  total  nonlib   name
+   1393   89.0%   89.1%  JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+      1    0.1%    0.1%  JS: +fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+      1    0.1%    0.1%  Builtin: InterpreterEntryTrampoline
+      1    0.1%    0.1%  Builtin: CallApiCallbackGeneric
+
+ [C++]:
+   ticks  total  nonlib   name
+     10    0.6%    0.6%  __write@@GLIBC_2.2.5
+      9    0.6%    0.6%  fputc@@GLIBC_2.2.5
+      4    0.3%    0.3%  std::ostream::put(char)@@GLIBCXX_3.4
+      2    0.1%    0.1%  fwrite@@GLIBC_2.2.5
+      1    0.1%    0.1%  syscall@@GLIBC_2.2.5
+      1    0.1%    0.1%  std::ostream::sentry::sentry(std::ostream&)@@GLIBCXX_3.4
+      1    0.1%    0.1%  node::IsolateData::DeserializeProperties(node::IsolateDataSerializeInfo const*)
+      1    0.1%    0.1%  isprint@@GLIBC_2.2.5
+      1    0.1%    0.1%  cfree@GLIBC_2.2.5
+      1    0.1%    0.1%  _int_malloc
+      1    0.1%    0.1%  __strlen_evex
+      1    0.1%    0.1%  __memcpy_evex_unaligned_erms
+
+ [Summary]:
+   ticks  total  nonlib   name
+   1396   89.2%   89.3%  JavaScript
+     33    2.1%    2.1%  C++
+      0    0.0%    0.0%  GC
+      1    0.1%          Shared libraries
+    135    8.6%          Unaccounted
+
+ [C++ entry points]:
+   ticks    cpp   total   name
+      8   36.4%    0.5%  fputc@@GLIBC_2.2.5
+      4   18.2%    0.3%  std::ostream::put(char)@@GLIBCXX_3.4
+      4   18.2%    0.3%  __write@@GLIBC_2.2.5
+      2    9.1%    0.1%  fwrite@@GLIBC_2.2.5
+      1    4.5%    0.1%  std::ostream::sentry::sentry(std::ostream&)@@GLIBCXX_3.4
+      1    4.5%    0.1%  isprint@@GLIBC_2.2.5
+      1    4.5%    0.1%  _int_malloc
+      1    4.5%    0.1%  __memcpy_evex_unaligned_erms
+
+ [Bottom up (heavy) profile]:
+  Note: percentage shows a share of a particular caller in the total
+  amount of its parent calls.
+  Callers occupying less than 1.0% are not shown.
+
+   ticks parent  name
+   1393   89.0%  JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+   1388   99.6%    JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+   1388  100.0%      JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+   1388  100.0%        JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+   1388  100.0%          JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+   1388  100.0%            JS: *fibonacci /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:12:19
+
+    135    8.6%  UNKNOWN
+     14   10.4%    JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+     14  100.0%      JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      4   28.6%        JS: ~<anonymous> node:internal/streams/duplex:1:1
+      4  100.0%          JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+      4  100.0%            JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      3   21.4%        JS: ~<anonymous> node:stream:1:1
+      3  100.0%          JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+      3  100.0%            JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      2   14.3%        JS: ~<anonymous> node:tty:1:1
+      2  100.0%          JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+      2  100.0%            JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      2   14.3%        JS: ~<anonymous> node:internal/streams/operators:1:1
+      2  100.0%          JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+      2  100.0%            JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      1    7.1%        JS: ~<anonymous> node:internal/streams/pipeline:1:1
+      1  100.0%          JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+      1  100.0%            JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      1    7.1%        JS: ~<anonymous> node:internal/streams/compose:1:1
+      1  100.0%          JS: ^compileForInternalLoader node:internal/bootstrap/realm:383:27
+      1  100.0%            JS: ^requireBuiltin node:internal/bootstrap/realm:420:24
+      1    7.1%        Builtin: CallApiCallbackGeneric
+      1  100.0%          JS: ~<anonymous> /home/nhanle/Desktop/my_training/nodejs-training/examples/15-cpu-profiling.js:1:1
+      1  100.0%            JS: ~<anonymous> node:internal/main/run_main_module:1:1
+      4    3.0%    JS: ~<anonymous> node:internal/main/run_main_module:1:1
+
