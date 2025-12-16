@@ -1,8 +1,11 @@
 {
   "name": "practice-one",
   "version": "1.0.0",
-  "description": "A Node.js practice project",
+  "description": "Ticket Booking CLI - Event management system with concurrency control",
   "main": "src/index.js",
+  "bin": {
+    "ticket-cli": "src/index.js"
+  },
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test tests/**/*.test.js",
@@ -12,12 +15,6 @@
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\""
   },
-  "keywords": [
-    "nodejs",
-    "practice",
-    "eslint",
-    "prettier"
-  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
