@@ -3,20 +3,20 @@
  * Manages all available CLI commands
  */
 
+const createCmd = require('./create');
+
 /**
  * Command registry object
  * Each command has: handler, description, usage, example
  */
 const commands = {
   help: {
-    handler: async () => {
-      await displayHelp();
-    },
+    handler: () => displayHelp(),
     description: 'Display help information',
     usage: 'ticket-cli help',
     example: 'ticket-cli help',
   },
-  //TODO: Add more commands as the project develops.
+  create: createCmd,
 };
 
 /**
