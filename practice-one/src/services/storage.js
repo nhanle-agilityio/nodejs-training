@@ -8,6 +8,8 @@ const { existsSync, readFileSync, writeFileSync } = require('fs');
 
 // Storage file path
 const STORAGE_FILE = path.join(process.cwd(), 'events.json');
+// Lock file path (for concurrency control)
+const LOCK_FILE = path.join(process.cwd(), 'events.lock');
 
 /**
  * Get default empty data structure
@@ -100,6 +102,7 @@ const writeDataSync = (data) => {
 
 module.exports = {
   STORAGE_FILE,
+  LOCK_FILE,
   getDefaultData,
   storageExists,
   readData,

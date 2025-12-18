@@ -6,6 +6,7 @@
 const createEventCmd = require('./create');
 const listEventsCmd = require('./list');
 const viewEventCmd = require('./view');
+const bookTicketCmd = require('./book');
 
 /**
  * Command registry object
@@ -21,6 +22,7 @@ const commands = {
   create: createEventCmd,
   list: listEventsCmd,
   view: viewEventCmd,
+  book: bookTicketCmd,
 };
 
 /**
