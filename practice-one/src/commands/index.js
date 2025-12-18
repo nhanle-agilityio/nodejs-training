@@ -3,7 +3,8 @@
  * Manages all available CLI commands
  */
 
-const createCmd = require('./create');
+const createEventCmd = require('./create');
+const listEventsCmd = require('./list');
 
 /**
  * Command registry object
@@ -16,7 +17,8 @@ const commands = {
     usage: 'ticket-cli help',
     example: 'ticket-cli help',
   },
-  create: createCmd,
+  create: createEventCmd,
+  list: listEventsCmd,
 };
 
 /**
@@ -50,7 +52,7 @@ const executeCommand = async (commandName, args) => {
     throw new Error(`Unknown command: ${commandName}\nUse 'ticket-cli help' for usage information.`);
   }
 
-  // Let the command handler handle its own output and errors
+  // Execute the command
   await command.handler(args);
 };
 
