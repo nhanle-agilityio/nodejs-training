@@ -7,6 +7,7 @@ const createEventCmd = require('./create');
 const listEventsCmd = require('./list');
 const viewEventCmd = require('./view');
 const bookTicketCmd = require('./book');
+const cancelTicketCmd = require('./cancel');
 
 /**
  * Command registry object
@@ -23,6 +24,7 @@ const commands = {
   list: listEventsCmd,
   view: viewEventCmd,
   book: bookTicketCmd,
+  cancel: cancelTicketCmd,
 };
 
 /**
@@ -76,9 +78,6 @@ const displayHelp = () => {
     console.log(`    Example: ${cmd.example}`);
     console.log('');
   });
-
-  // TODO: Add more commands as the project develops.
-  console.log('Note: More commands will be available as the project develops.');
 };
 
 module.exports = {
