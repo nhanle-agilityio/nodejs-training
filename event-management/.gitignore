@@ -26,3 +26,8 @@ build/
 # Temporary files
 tmp/
 temp/
+
+# Database
+data/
+
+internal-doc/
