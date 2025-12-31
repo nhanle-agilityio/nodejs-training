@@ -11,3 +11,15 @@ export const validateCreateEvent = (req, res, next) => {
 
   next();
 };
+
+/**
+ * Validation middleware for update event request
+ */
+export const validateUpdateEvent = (req, res, next) => {
+  const validationResult = validateEvent(req.body);
+  if (!validationResult.isValid) {
+    return res.status(400).json({ error: validationResult.error });
+  }
+
+  next();
+};

@@ -18,10 +18,14 @@ export const CREATE_EVENT = `
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
+export const UPDATE_EVENT = `
+  UPDATE events SET name = ?, description = ?, location = ?, date = ?, ticketPrice = ?, capacity = ?, updatedAt = ? WHERE id = ?
+`;
+
 export const GET_EVENT_BY_ID = `
-  SELECT * FROM events WHERE id = ?
+  SELECT * FROM events WHERE id = ? AND deleteAt is NULL
 `;
 
 export const GET_ALL_EVENTS = `
-  SELECT * FROM events
+  SELECT * FROM events WHERE deleteAt is NULL
 `;

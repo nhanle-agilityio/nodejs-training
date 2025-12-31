@@ -25,6 +25,17 @@ app.use((req, res, next) => {
   });
 });
 
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred',
+    },
+  });
+});
+
 // Initialize database and start server
 const startServer = async () => {
   try {

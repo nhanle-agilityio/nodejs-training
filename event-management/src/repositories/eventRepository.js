@@ -1,4 +1,4 @@
-import { CREATE_EVENT, GET_EVENT_BY_ID, GET_ALL_EVENTS } from './query-template/events.js';
+import { CREATE_EVENT, GET_EVENT_BY_ID, GET_ALL_EVENTS, UPDATE_EVENT } from './query-template/events.js';
 
 export class EventRepository {
   constructor(db) {
@@ -6,18 +6,45 @@ export class EventRepository {
   }
 
   async createEvent(event) {
-    const now = new Date().toISOString();
-    const result = await this.db.run(CREATE_EVENT, [
-      event.name,
-      event.description,
-      event.location,
-      event.date,
-      event.ticketPrice,
-      event.capacity,
-      now,
-      now,
-    ]);
-    return this.getEventById(result.lastID);
+    try {
+      const now = new Date().toISOString();
+      const result = await this.db.run(CREATE_EVENT, [
+        event.name,
+        event.description,
+        event.location,
+        event.date,
+        event.ticketPrice,
+        event.capacity,
+        now,
+        now,
+      ]);
+      return this.getEventById(result.lastID);
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+  }
+
+  async updateEvent(event, id) {
+    try {
+      const now = new Date().toISOString();
+
+      await this.db.run(UPDATE_EVENT, [
+        event.name,
+        event.description,
+        event.location,
+        event.date,
+        event.ticketPrice,
+        event.capacity,
+        now,
+        id,
+      ]);
+
+      return this.getEventById(id);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      throw error;
+    }
   }
 
   async getEventById(id) {
