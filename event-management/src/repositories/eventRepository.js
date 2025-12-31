@@ -76,7 +76,22 @@ export class EventRepository {
   }
 
   async getEventById(id) {
-    return this.db.get(GET_EVENT_BY_ID, id);
+    try {
+      const event = await this.db.get(GET_EVENT_BY_ID, id);
+      console.log('event', event);
+      if (!event) {
+        return {
+          error: {
+            code: 'NOT_FOUND',
+            message: `Event not found with id: ${id}`,
+          },
+        };
+      }
+      return event;
+    } catch (error) {
+      console.error('Error getting event by id:', error);
+      throw error;
+    }
   }
 
   async getAllEvents() {

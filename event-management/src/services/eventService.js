@@ -43,3 +43,8 @@ export const deleteEvent = async (eventRepository, id) => {
   const result = await eventRepository.deleteEvent(id);
   return result;
 };
+
+export const getEventById = async (eventRepository, id) => {
+  const event = await eventRepository.getEventById(id);
+  return event;
+};
