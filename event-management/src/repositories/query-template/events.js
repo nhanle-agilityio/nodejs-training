@@ -22,6 +22,10 @@ export const UPDATE_EVENT = `
   UPDATE events SET name = ?, description = ?, location = ?, date = ?, ticketPrice = ?, capacity = ?, updatedAt = ? WHERE id = ?
 `;
 
+export const DELETE_EVENT = `
+  UPDATE events SET deleteAt = datetime('now') WHERE id = ? AND deleteAt is NULL
+`;
+
 export const GET_EVENT_BY_ID = `
   SELECT * FROM events WHERE id = ? AND deleteAt is NULL
 `;

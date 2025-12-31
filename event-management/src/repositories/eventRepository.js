@@ -1,4 +1,4 @@
-import { CREATE_EVENT, GET_EVENT_BY_ID, GET_ALL_EVENTS, UPDATE_EVENT } from './query-template/events.js';
+import { CREATE_EVENT, GET_EVENT_BY_ID, GET_ALL_EVENTS, UPDATE_EVENT, DELETE_EVENT } from './query-template/events.js';
 
 export class EventRepository {
   constructor(db) {
@@ -52,6 +52,25 @@ export class EventRepository {
       return this.getEventById(id);
     } catch (error) {
       console.error('Error updating event:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvent(id) {
+    try {
+      const result = await this.db.run(DELETE_EVENT, id);
+      if (result.changes === 0) {
+        return {
+          error: {
+            code: 'NOT_FOUND',
+            message: `Event not found with id: ${id}`,
+          },
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error deleting event:', error);
       throw error;
     }
   }

@@ -1,4 +1,4 @@
-import { createEvent, updateEvent } from '../services/eventService.js';
+import { createEvent, updateEvent, deleteEvent } from '../services/eventService.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { getDatabase } from '../database/db.js';
 
@@ -31,6 +31,23 @@ export const updateEventHandler = async (req, res, next) => {
     }
 
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete an event
+ */
+export const deleteEventHandler = async (req, res, next) => {
+  try {
+    const db = getDatabase();
+    const eventRepository = new EventRepository(db);
+    const result = await deleteEvent(eventRepository, req.params.id);
+    if (result.error) {
+      return res.status(404).json(result.error);
+    }
+    res.status(204).json({});
   } catch (error) {
     next(error);
   }

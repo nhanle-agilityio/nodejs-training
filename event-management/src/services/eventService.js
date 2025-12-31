@@ -32,3 +32,14 @@ export const updateEvent = async (eventRepository, eventData, id) => {
   const event = await eventRepository.updateEvent(eventData, id);
   return event;
 };
+
+/**
+ * Delete an event
+ * @param {EventRepository} eventRepository - Event repository
+ * @param {string} id - Event id
+ * @returns {Promise<Object>} Deleted event
+ */
+export const deleteEvent = async (eventRepository, id) => {
+  const result = await eventRepository.deleteEvent(id);
+  return result;
+};
