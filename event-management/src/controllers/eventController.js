@@ -24,8 +24,13 @@ export const updateEventHandler = async (req, res, next) => {
   try {
     const db = getDatabase();
     const eventRepository = new EventRepository(db);
-    const event = await updateEvent(eventRepository, req.body, req.params.id);
-    res.status(200).json(event);
+    const result = await updateEvent(eventRepository, req.body, req.params.id);
+
+    if (result.error) {
+      return res.status(404).json(result.error);
+    }
+
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

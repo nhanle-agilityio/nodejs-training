@@ -29,7 +29,7 @@ export class EventRepository {
     try {
       const now = new Date().toISOString();
 
-      await this.db.run(UPDATE_EVENT, [
+      const result = await this.db.run(UPDATE_EVENT, [
         event.name,
         event.description,
         event.location,
@@ -39,6 +39,15 @@ export class EventRepository {
         now,
         id,
       ]);
+
+      if (result.changes === 0) {
+        return {
+          error: {
+            code: 'NOT_FOUND',
+            message: `Event not found with id: ${id}`,
+          },
+        };
+      }
 
       return this.getEventById(id);
     } catch (error) {
