@@ -122,6 +122,13 @@ const validateFields = (data, validationRules, isFullValidation = true) => {
   const errors = [];
   const normalized = {};
 
+  if (!!data === false || Object.keys(data).length === 0) {
+    return {
+      isValid: false,
+      error: { status: 400, code: 'VALIDATION_ERROR', message: 'No data provided' },
+    };
+  }
+
   const unknownFields = Object.keys(data).filter((key) => !validationRules[key]);
   if (unknownFields.length > 0) {
     errors.push({
@@ -185,7 +192,10 @@ const validateFields = (data, validationRules, isFullValidation = true) => {
   }
 
   return errors.length > 0
-    ? { isValid: false, error: { code: 'VALIDATION_ERROR', message: 'Validation failed', details: errors } }
+    ? {
+        isValid: false,
+        error: { status: 400, code: 'VALIDATION_ERROR', message: 'Validation failed', details: errors },
+      }
     : { isValid: true, data: normalized };
 };
 

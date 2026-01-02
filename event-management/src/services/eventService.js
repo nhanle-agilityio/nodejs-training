@@ -1,5 +1,3 @@
-import { validateQueryParams, validatePartialUpdateEvent } from './validator.js';
-
 /**
  * Create a new event
  * @param {EventRepository} eventRepository - Event repository
@@ -31,8 +29,8 @@ export const createEvent = async (eventRepository, eventData) => {
  * @returns {Promise<Object>} Updated event
  */
 export const updateEvent = async (eventRepository, eventData, id) => {
-  const event = await eventRepository.updateEvent(eventData, id);
-  return event;
+  const result = await eventRepository.updateEvent(eventData, id);
+  return result;
 };
 
 /**
@@ -47,25 +45,16 @@ export const deleteEvent = async (eventRepository, id) => {
 };
 
 export const getEventById = async (eventRepository, id) => {
-  const event = await eventRepository.getEventById(id);
-  return event;
+  const result = await eventRepository.getEventById(id);
+  return result;
 };
 
 export const getEvents = async (eventRepository, params) => {
-  const validationResult = validateQueryParams(params);
-  if (!validationResult.isValid) {
-    return validationResult.error;
-  }
-  const results = await eventRepository.getAllEvents(validationResult.data);
+  const results = await eventRepository.getAllEvents(params);
   return results;
 };
 
 export const partialUpdateEvent = async (eventRepository, eventData, id) => {
-  const validationResult = validatePartialUpdateEvent(eventData);
-  if (!validationResult.isValid) {
-    return validationResult.error;
-  }
-
-  const event = await eventRepository.partialUpdateEvent(validationResult.data, id);
-  return event;
+  const result = await eventRepository.partialUpdateEvent(eventData, id);
+  return result;
 };

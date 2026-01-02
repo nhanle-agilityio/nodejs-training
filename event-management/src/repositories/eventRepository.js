@@ -28,6 +28,7 @@ export class EventRepository {
         now,
         now,
       ]);
+
       return this.getEventById(result.lastID);
     } catch (error) {
       console.error('Error creating event:', error);
@@ -53,6 +54,7 @@ export class EventRepository {
       if (result.changes === 0) {
         return {
           error: {
+            status: 404,
             code: 'NOT_FOUND',
             message: `Event not found with id: ${id}`,
           },
@@ -72,6 +74,7 @@ export class EventRepository {
       if (result.changes === 0) {
         return {
           error: {
+            status: 404,
             code: 'NOT_FOUND',
             message: `Event not found with id: ${id}`,
           },
@@ -88,10 +91,11 @@ export class EventRepository {
   async getEventById(id) {
     try {
       const event = await this.db.get(GET_EVENT_BY_ID, id);
-      console.log('event', event);
+
       if (!event) {
         return {
           error: {
+            status: 404,
             code: 'NOT_FOUND',
             message: `Event not found with id: ${id}`,
           },
@@ -162,7 +166,6 @@ export class EventRepository {
   }
 
   async partialUpdateEvent(event, id) {
-    console.log('event', event);
     try {
       const now = new Date().toISOString();
       const result = await this.db.run(PARTIAL_UPDATE_EVENT, [
@@ -179,6 +182,7 @@ export class EventRepository {
       if (result.changes === 0) {
         return {
           error: {
+            status: 404,
             code: 'NOT_FOUND',
             message: `Event not found with id: ${id}`,
           },

@@ -34,7 +34,8 @@ export const updateEventHandler = async (req, res, next) => {
     const result = await updateEvent(eventRepository, req.body, req.params.id);
 
     if (result.error) {
-      return res.status(404).json(result.error);
+      const { status, ...errorBody } = result.error;
+      return res.status(status).json(errorBody);
     }
 
     res.status(200).json(result);
@@ -51,10 +52,13 @@ export const deleteEventHandler = async (req, res, next) => {
     const db = getDatabase();
     const eventRepository = new EventRepository(db);
     const result = await deleteEvent(eventRepository, req.params.id);
+
     if (result.error) {
-      return res.status(404).json(result.error);
+      const { status, ...errorBody } = result.error;
+      return res.status(status).json(errorBody);
     }
-    res.status(204).json({});
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
@@ -70,7 +74,8 @@ export const getEventHandler = async (req, res, next) => {
     const event = await getEventById(eventRepository, req.params.id);
 
     if (event.error) {
-      return res.status(404).json(event.error);
+      const { status, ...errorBody } = event.error;
+      return res.status(status).json(errorBody);
     }
 
     res.status(200).json(event);
@@ -89,7 +94,8 @@ export const getEventsHandler = async (req, res, next) => {
     const results = await getEvents(eventRepository, req.query);
 
     if (results.error) {
-      return res.status(404).json(results.error);
+      const { status, ...errorBody } = results.error;
+      return res.status(status).json(errorBody);
     }
 
     res.status(200).json(results);
@@ -108,7 +114,8 @@ export const partialUpdateEventHandler = async (req, res, next) => {
     const result = await partialUpdateEvent(eventRepository, req.body, req.params.id);
 
     if (result.error) {
-      return res.status(404).json(result.error);
+      const { status, ...errorBody } = result.error;
+      return res.status(status).json(errorBody);
     }
 
     res.status(200).json(result);

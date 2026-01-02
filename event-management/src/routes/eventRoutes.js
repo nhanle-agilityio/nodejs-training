@@ -7,7 +7,12 @@ import {
   getEventsHandler,
   partialUpdateEventHandler,
 } from '../controllers/eventController.js';
-import { validateEventFields, validateEventIdParam } from '../middleware/validation.js';
+import {
+  validateEventFields,
+  validateEventIdParam,
+  validatePartialEventFields,
+  validateParams,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -15,7 +20,7 @@ router.post('/', validateEventFields, createEventHandler);
 router.put('/:id', validateEventIdParam, validateEventFields, updateEventHandler);
 router.delete('/:id', validateEventIdParam, deleteEventHandler);
 router.get('/:id', validateEventIdParam, getEventHandler);
-router.get('/', getEventsHandler);
-router.patch('/:id', validateEventIdParam, partialUpdateEventHandler);
+router.get('/', validateParams, getEventsHandler);
+router.patch('/:id', validateEventIdParam, validatePartialEventFields, partialUpdateEventHandler);
 
 export default router;
