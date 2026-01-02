@@ -13,9 +13,10 @@ import {
   validatePartialEventFields,
   validateParams,
 } from '../middleware/validation.js';
-
+import { injectRepository } from '../middleware/repository.js';
 const router = express.Router();
 
+router.use(injectRepository);
 router.post('/', validateEventFields, createEventHandler);
 router.put('/:id', validateEventIdParam, validateEventFields, updateEventHandler);
 router.delete('/:id', validateEventIdParam, deleteEventHandler);

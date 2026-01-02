@@ -6,17 +6,13 @@ import {
   getEvents,
   partialUpdateEvent,
 } from '../services/eventService.js';
-import { EventRepository } from '../repositories/eventRepository.js';
-import { getDatabase } from '../database/db.js';
 
 /**
  * Create a new event
  */
 export const createEventHandler = async (req, res, next) => {
   try {
-    const db = getDatabase();
-    const eventRepository = new EventRepository(db);
-    const event = await createEvent(eventRepository, req.body);
+    const event = await createEvent(req.eventRepository, req.body);
 
     res.status(201).json(event);
   } catch (error) {
@@ -29,9 +25,7 @@ export const createEventHandler = async (req, res, next) => {
  */
 export const updateEventHandler = async (req, res, next) => {
   try {
-    const db = getDatabase();
-    const eventRepository = new EventRepository(db);
-    const result = await updateEvent(eventRepository, req.body, req.params.id);
+    const result = await updateEvent(req.eventRepository, req.body, req.params.id);
 
     if (result.error) {
       const { status, ...errorBody } = result.error;
@@ -49,9 +43,7 @@ export const updateEventHandler = async (req, res, next) => {
  */
 export const deleteEventHandler = async (req, res, next) => {
   try {
-    const db = getDatabase();
-    const eventRepository = new EventRepository(db);
-    const result = await deleteEvent(eventRepository, req.params.id);
+    const result = await deleteEvent(req.eventRepository, req.params.id);
 
     if (result.error) {
       const { status, ...errorBody } = result.error;
@@ -69,9 +61,7 @@ export const deleteEventHandler = async (req, res, next) => {
  */
 export const getEventHandler = async (req, res, next) => {
   try {
-    const db = getDatabase();
-    const eventRepository = new EventRepository(db);
-    const event = await getEventById(eventRepository, req.params.id);
+    const event = await getEventById(req.eventRepository, req.params.id);
 
     if (event.error) {
       const { status, ...errorBody } = event.error;
@@ -89,9 +79,7 @@ export const getEventHandler = async (req, res, next) => {
  */
 export const getEventsHandler = async (req, res, next) => {
   try {
-    const db = getDatabase();
-    const eventRepository = new EventRepository(db);
-    const results = await getEvents(eventRepository, req.query);
+    const results = await getEvents(req.eventRepository, req.query);
 
     if (results.error) {
       const { status, ...errorBody } = results.error;
@@ -109,9 +97,7 @@ export const getEventsHandler = async (req, res, next) => {
  */
 export const partialUpdateEventHandler = async (req, res, next) => {
   try {
-    const db = getDatabase();
-    const eventRepository = new EventRepository(db);
-    const result = await partialUpdateEvent(eventRepository, req.body, req.params.id);
+    const result = await partialUpdateEvent(req.eventRepository, req.body, req.params.id);
 
     if (result.error) {
       const { status, ...errorBody } = result.error;

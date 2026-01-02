@@ -34,6 +34,11 @@ export const validatePartialEventFields = (req, res, next) => {
  * Validation middleware for query parameters
  */
 export const validateParams = (req, res, next) => {
+  // If no query params are provided, skip validation
+  if (!req.query || Object.keys(req.query).length === 0) {
+    return next();
+  }
+
   const validationResult = validateQueryParams(req.query);
 
   if (!validationResult.isValid) {
