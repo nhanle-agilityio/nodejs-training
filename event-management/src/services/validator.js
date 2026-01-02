@@ -1,3 +1,194 @@
+import { EVENT_STATUS } from '../constants/index.js';
+
+const validateString = (value, rule, fieldName) => {
+  const errors = [];
+
+  if (typeof value !== 'string') {
+    errors.push({ field: fieldName, message: `${fieldName} must be a string` });
+    return { errors, value: null };
+  }
+
+  const trimmedValue = value.trim();
+
+  if (trimmedValue.length === 0 && rule.required) {
+    errors.push({ field: fieldName, message: `${fieldName} cannot be empty` });
+    return { errors, value: null };
+  }
+
+  if (rule.minLength !== undefined && trimmedValue.length < rule.minLength) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must be at least ${rule.minLength} characters`,
+    });
+  }
+
+  if (rule.maxLength !== undefined && trimmedValue.length > rule.maxLength) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must not exceed ${rule.maxLength} characters`,
+    });
+  }
+
+  return { errors, value: trimmedValue };
+};
+
+const validateNumber = (value, rule, fieldName) => {
+  const errors = [];
+  const numValue = typeof value === 'string' ? Number(value) : value;
+
+  if (typeof numValue !== 'number' || isNaN(numValue)) {
+    errors.push({ field: fieldName, message: `${fieldName} must be a valid number` });
+    return { errors, value: null };
+  }
+
+  if (rule.min !== undefined && numValue < rule.min) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must be at least ${rule.min}`,
+    });
+  }
+
+  if (rule.max !== undefined && numValue > rule.max) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must not exceed ${rule.max}`,
+    });
+  }
+
+  return { errors, value: numValue };
+};
+
+const validateInteger = (value, rule, fieldName) => {
+  const errors = [];
+  const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
+
+  if (isNaN(numValue) || !Number.isInteger(numValue)) {
+    errors.push({ field: fieldName, message: `${fieldName} must be a valid integer` });
+    return { errors, value: null };
+  }
+
+  if (rule.min !== undefined && numValue < rule.min) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must be at least ${rule.min}`,
+    });
+  }
+
+  if (rule.max !== undefined && numValue > rule.max) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must not exceed ${rule.max}`,
+    });
+  }
+
+  return { errors, value: numValue };
+};
+
+const validateDate = (value, rule, fieldName) => {
+  const errors = [];
+  const dateObj = new Date(value);
+
+  if (isNaN(dateObj.getTime())) {
+    errors.push({ field: fieldName, message: `${fieldName} must be a valid date` });
+    return { errors, value: null };
+  }
+
+  // Check if date is not in past
+  if (rule.notInPast && dateObj < new Date()) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} cannot be in the past`,
+    });
+  }
+
+  return { errors, value };
+};
+
+const validateEnum = (value, rule, fieldName) => {
+  const errors = [];
+
+  if (!rule.values.includes(value)) {
+    errors.push({
+      field: fieldName,
+      message: `${fieldName} must be one of: ${rule.values.join(', ')}`,
+    });
+    return { errors, value: null };
+  }
+
+  return { errors, value };
+};
+
+const validateFields = (data, validationRules, isFullValidation = true) => {
+  const errors = [];
+  const normalized = {};
+
+  const unknownFields = Object.keys(data).filter((key) => !validationRules[key]);
+  if (unknownFields.length > 0) {
+    errors.push({
+      field: 'unknown',
+      message: `Unknown fields: ${unknownFields.join(', ')}`,
+    });
+  }
+
+  // Determine which fields to validate
+  const fieldsToValidate = isFullValidation
+    ? Object.keys(validationRules)
+    : Object.keys(data).filter((key) => validationRules[key]);
+
+  for (const key of fieldsToValidate) {
+    const rule = validationRules[key];
+    const rawValue = data[key];
+    const isFieldPresent = !!rawValue;
+
+    // Check required fields
+    if (rule.required) {
+      if (!isFieldPresent || (typeof rawValue === 'string' && rawValue.trim().length === 0)) {
+        errors.push({ field: key, message: `${key} is required` });
+        continue;
+      }
+    }
+
+    // Skip validation if field is not present in partial mode
+    if (!isFieldPresent && !isFullValidation) {
+      continue;
+    }
+
+    let validationResult = null;
+
+    switch (rule.type) {
+      case 'string':
+        validationResult = validateString(rawValue, rule, key);
+        break;
+      case 'number':
+        validationResult = validateNumber(rawValue, rule, key);
+        break;
+      case 'integer':
+        validationResult = validateInteger(rawValue, rule, key);
+        break;
+      case 'date':
+        validationResult = validateDate(rawValue, rule, key);
+        break;
+      case 'enum':
+        validationResult = validateEnum(rawValue, rule, key);
+        break;
+      default:
+        if (isFieldPresent) {
+          validationResult = { errors: [{ field: key, message: `Value for ${key} is invalid type` }], value: rawValue };
+        }
+    }
+
+    if (validationResult && validationResult.errors.length > 0) {
+      errors.push(...validationResult.errors);
+    } else if (validationResult && validationResult.value !== null) {
+      normalized[key] = validationResult.value;
+    }
+  }
+
+  return errors.length > 0
+    ? { isValid: false, error: { code: 'VALIDATION_ERROR', message: 'Validation failed', details: errors } }
+    : { isValid: true, data: normalized };
+};
+
 const eventValidation = {
   name: {
     required: true,
@@ -32,98 +223,44 @@ const eventValidation = {
   },
 };
 
-export const validateEvent = (eventData, isFullValidation = true) => {
-  const errors = [];
+export const validateEvent = (eventData) => {
+  return validateFields(eventData, eventValidation);
+};
 
-  // Determine which fields to validate
-  const fieldsToValidate = isFullValidation
-    ? Object.keys(eventValidation)
-    : Object.keys(eventData).filter((key) => eventValidation[key]);
+const queryParamsValidation = {
+  location: {
+    type: 'string',
+    maxLength: 200,
+    minLength: 1,
+  },
+  status: {
+    type: 'enum',
+    values: Object.values(EVENT_STATUS),
+  },
+  min_price: {
+    type: 'number',
+    min: 0,
+  },
+  max_price: {
+    type: 'number',
+    min: 0,
+  },
+  page: {
+    type: 'integer',
+    min: 1,
+  },
+  limit: {
+    type: 'integer',
+    min: 1,
+    max: 100,
+  },
+  sort: {
+    type: 'string',
+    maxLength: 500,
+    minLength: 1,
+  },
+};
 
-  // Check for unknown fields in partial mode
-  if (!isFullValidation) {
-    const unknownFields = Object.keys(eventData).filter((key) => !eventValidation[key]);
-    if (unknownFields.length > 0) {
-      errors.push({
-        field: 'unknown',
-        message: `Unknown fields: ${unknownFields.join(', ')}`,
-      });
-    }
-  }
-
-  for (const key of fieldsToValidate) {
-    const rule = eventValidation[key];
-    const rawValue = eventData[key];
-    const isFieldPresent = rawValue !== undefined && rawValue !== null;
-
-    if (rule.required) {
-      if (isFullValidation) {
-        if (!isFieldPresent || (typeof rawValue === 'string' && rawValue.trim().length === 0)) {
-          errors.push({ field: key, message: `${key} is required` });
-          continue;
-        }
-      } else {
-        if (isFieldPresent && typeof rawValue === 'string' && rawValue.trim().length === 0) {
-          errors.push({ field: key, message: `${key} cannot be empty` });
-          continue;
-        }
-      }
-    }
-
-    // Skip validation if field is not present in partial mode
-    if (!isFieldPresent && !isFullValidation) {
-      continue;
-    }
-
-    if (rule.type === 'string') {
-      if (typeof rawValue !== 'string') {
-        errors.push({ field: key, message: `${key} must be a string` });
-        continue;
-      }
-      const trimmedValue = rawValue.trim();
-
-      if (rule.minLength && trimmedValue.length < rule.minLength) {
-        errors.push({ field: key, message: `${key} must be at least ${rule.minLength} characters` });
-      }
-      if (rule.maxLength && trimmedValue.length > rule.maxLength) {
-        errors.push({ field: key, message: `${key} must not exceed ${rule.maxLength} characters` });
-      }
-    }
-
-    if (rule.type === 'number') {
-      const numValue = typeof rawValue === 'string' ? Number(rawValue) : rawValue;
-      if (typeof numValue !== 'number' || isNaN(numValue)) {
-        errors.push({ field: key, message: `${key} must be a valid number` });
-        continue;
-      }
-
-      if (rule.min !== undefined && numValue < rule.min) {
-        errors.push({ field: key, message: `${key} must be at least ${rule.min}` });
-      }
-    }
-
-    if (rule.type === 'date') {
-      const dateObj = new Date(rawValue);
-      if (isNaN(dateObj.getTime())) {
-        errors.push({ field: key, message: `${key} must be a valid date` });
-        continue;
-      }
-
-      // Date constraint validations
-      if (rule.notInPast && dateObj < new Date()) {
-        errors.push({ field: key, message: `${key} cannot be in the past` });
-      }
-    }
-  }
-
-  return errors.length > 0
-    ? {
-        isValid: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors,
-        },
-      }
-    : { isValid: true };
+export const validateQueryParams = (queryParams) => {
+  return validateFields(queryParams, queryParamsValidation, false);
 };
