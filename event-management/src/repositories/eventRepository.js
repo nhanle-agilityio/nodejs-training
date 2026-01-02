@@ -5,6 +5,7 @@ import {
   UPDATE_EVENT,
   DELETE_EVENT,
   GET_EVENTS_COUNT,
+  PARTIAL_UPDATE_EVENT,
 } from './query-template/events.js';
 import { PAGE_SIZE, PAGE_NUMBER, EVENT_STATUS } from '../constants/index.js';
 import { buildOrderBy } from '../utils/queryBuilder.js';
@@ -156,6 +157,36 @@ export class EventRepository {
       };
     } catch (error) {
       console.error('Error getting events:', error);
+      throw error;
+    }
+  }
+
+  async partialUpdateEvent(event, id) {
+    console.log('event', event);
+    try {
+      const now = new Date().toISOString();
+      const result = await this.db.run(PARTIAL_UPDATE_EVENT, [
+        event.name,
+        event.description,
+        event.location,
+        event.date,
+        event.ticketPrice,
+        event.capacity,
+        now,
+        id,
+      ]);
+
+      if (result.changes === 0) {
+        return {
+          error: {
+            code: 'NOT_FOUND',
+            message: `Event not found with id: ${id}`,
+          },
+        };
+      }
+      return this.getEventById(id);
+    } catch (error) {
+      console.error('Error partial updating event:', error);
       throw error;
     }
   }

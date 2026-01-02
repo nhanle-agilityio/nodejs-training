@@ -1,4 +1,11 @@
-import { createEvent, updateEvent, deleteEvent, getEventById, getEvents } from '../services/eventService.js';
+import {
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  getEventById,
+  getEvents,
+  partialUpdateEvent,
+} from '../services/eventService.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { getDatabase } from '../database/db.js';
 
@@ -81,7 +88,30 @@ export const getEventsHandler = async (req, res, next) => {
     const eventRepository = new EventRepository(db);
     const results = await getEvents(eventRepository, req.query);
 
+    if (results.error) {
+      return res.status(404).json(results.error);
+    }
+
     res.status(200).json(results);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Partial update an event
+ */
+export const partialUpdateEventHandler = async (req, res, next) => {
+  try {
+    const db = getDatabase();
+    const eventRepository = new EventRepository(db);
+    const result = await partialUpdateEvent(eventRepository, req.body, req.params.id);
+
+    if (result.error) {
+      return res.status(404).json(result.error);
+    }
+
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,4 @@
-import { validateQueryParams } from './validator.js';
+import { validateQueryParams, validatePartialUpdateEvent } from './validator.js';
 
 /**
  * Create a new event
@@ -58,4 +58,14 @@ export const getEvents = async (eventRepository, params) => {
   }
   const results = await eventRepository.getAllEvents(validationResult.data);
   return results;
+};
+
+export const partialUpdateEvent = async (eventRepository, eventData, id) => {
+  const validationResult = validatePartialUpdateEvent(eventData);
+  if (!validationResult.isValid) {
+    return validationResult.error;
+  }
+
+  const event = await eventRepository.partialUpdateEvent(validationResult.data, id);
+  return event;
 };

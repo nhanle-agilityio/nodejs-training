@@ -227,6 +227,10 @@ export const validateEvent = (eventData) => {
   return validateFields(eventData, eventValidation);
 };
 
+export const validatePartialUpdateEvent = (eventData) => {
+  return validateFields(eventData, eventValidation, false);
+};
+
 const queryParamsValidation = {
   location: {
     type: 'string',

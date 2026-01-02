@@ -37,3 +37,7 @@ export const GET_ALL_EVENTS = `
 export const GET_EVENTS_COUNT = `
   SELECT COUNT(*) AS total_events FROM events WHERE deleteAt is NULL
 `;
+
+export const PARTIAL_UPDATE_EVENT = `
+  UPDATE events SET name = COALESCE(?, name), description = COALESCE(?, description), location = COALESCE(?, location), date = COALESCE(?, date), ticketPrice = COALESCE(?, ticketPrice), capacity = COALESCE(?, capacity), updatedAt = ? WHERE id = ?
+`;
