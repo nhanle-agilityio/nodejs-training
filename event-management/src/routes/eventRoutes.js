@@ -4,6 +4,7 @@ import {
   updateEventHandler,
   deleteEventHandler,
   getEventHandler,
+  getEventsHandler,
 } from '../controllers/eventController.js';
 import { validateEventFields, validateEventIdParam } from '../middleware/validation.js';
 
@@ -13,5 +14,6 @@ router.post('/', validateEventFields, createEventHandler);
 router.put('/:id', validateEventIdParam, validateEventFields, updateEventHandler);
 router.delete('/:id', validateEventIdParam, deleteEventHandler);
 router.get('/:id', validateEventIdParam, getEventHandler);
+router.get('/', getEventsHandler);
 
 export default router;

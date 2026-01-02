@@ -33,3 +33,7 @@ export const GET_EVENT_BY_ID = `
 export const GET_ALL_EVENTS = `
   SELECT * FROM events WHERE deleteAt is NULL
 `;
+
+export const GET_EVENTS_COUNT = `
+  SELECT COUNT(*) AS total_events FROM events WHERE deleteAt is NULL
+`;

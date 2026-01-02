@@ -1,4 +1,4 @@
-import { createEvent, updateEvent, deleteEvent, getEventById } from '../services/eventService.js';
+import { createEvent, updateEvent, deleteEvent, getEventById, getEvents } from '../services/eventService.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { getDatabase } from '../database/db.js';
 
@@ -67,6 +67,21 @@ export const getEventHandler = async (req, res, next) => {
     }
 
     res.status(200).json(event);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get all events with query params
+ */
+export const getEventsHandler = async (req, res, next) => {
+  try {
+    const db = getDatabase();
+    const eventRepository = new EventRepository(db);
+    const results = await getEvents(eventRepository, req.query);
+
+    res.status(200).json(results);
   } catch (error) {
     next(error);
   }

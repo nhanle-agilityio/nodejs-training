@@ -1,3 +1,5 @@
+import { validateQueryParams } from './validator.js';
+
 /**
  * Create a new event
  * @param {EventRepository} eventRepository - Event repository
@@ -47,4 +49,13 @@ export const deleteEvent = async (eventRepository, id) => {
 export const getEventById = async (eventRepository, id) => {
   const event = await eventRepository.getEventById(id);
   return event;
+};
+
+export const getEvents = async (eventRepository, params) => {
+  const validationResult = validateQueryParams(params);
+  if (!validationResult.isValid) {
+    return validationResult.error;
+  }
+  const results = await eventRepository.getAllEvents(validationResult.data);
+  return results;
 };

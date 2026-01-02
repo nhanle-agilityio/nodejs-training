@@ -1,4 +1,13 @@
-import { CREATE_EVENT, GET_EVENT_BY_ID, GET_ALL_EVENTS, UPDATE_EVENT, DELETE_EVENT } from './query-template/events.js';
+import {
+  CREATE_EVENT,
+  GET_EVENT_BY_ID,
+  GET_ALL_EVENTS,
+  UPDATE_EVENT,
+  DELETE_EVENT,
+  GET_EVENTS_COUNT,
+} from './query-template/events.js';
+import { PAGE_SIZE, PAGE_NUMBER, EVENT_STATUS } from '../constants/index.js';
+import { buildOrderBy } from '../utils/queryBuilder.js';
 
 export class EventRepository {
   constructor(db) {
@@ -94,7 +103,60 @@ export class EventRepository {
     }
   }
 
-  async getAllEvents() {
-    return this.db.all(GET_ALL_EVENTS);
+  async getAllEvents(paramsFilters) {
+    try {
+      const { location, status, min_price, max_price, page, limit, sort } = paramsFilters;
+      const params = [];
+      const pageSize = limit || PAGE_SIZE;
+      const pageNumber = page || PAGE_NUMBER;
+      let queryFilters = '';
+
+      if (location) {
+        queryFilters += ' AND location LIKE ?';
+        params.push(`%${location}%`);
+      }
+
+      if (min_price) {
+        queryFilters += ' AND ticketPrice >= ?';
+        params.push(min_price);
+      }
+
+      if (max_price) {
+        queryFilters += ' AND ticketPrice <= ?';
+        params.push(max_price);
+      }
+
+      if (status) {
+        const now = new Date().toISOString();
+        if (status === EVENT_STATUS.UPCOMING) {
+          queryFilters += ' AND date >= ?';
+          params.push(now);
+        } else if (status === EVENT_STATUS.PAST) {
+          queryFilters += ' AND date <= ?';
+          params.push(now);
+        }
+      }
+
+      const orderByQuery = buildOrderBy(sort);
+      const limitQuery = `LIMIT ${pageSize} OFFSET ${(pageNumber - 1) * pageSize}`;
+
+      // Special case: Create an additional query to get total events (before pagination)
+      const totalEventsCount = await this.db.get(`${GET_EVENTS_COUNT} ${queryFilters}`, params);
+
+      // Get events with pagination and sorting
+      const results = await this.db.all(`${GET_ALL_EVENTS} ${queryFilters} ${orderByQuery} ${limitQuery}`, params);
+
+      return {
+        data: results,
+        meta: {
+          total: totalEventsCount.total_events,
+          page: pageNumber,
+          last_page: Math.ceil(totalEventsCount.total_events / pageSize),
+        },
+      };
+    } catch (error) {
+      console.error('Error getting events:', error);
+      throw error;
+    }
   }
 }
