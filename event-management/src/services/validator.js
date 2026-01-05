@@ -1,4 +1,4 @@
-import { EVENT_STATUS } from '../constants/index.js';
+import { EVENT_STATUS, ERROR_CODES } from '../constants/index.js';
 
 const validateString = (value, rule, fieldName) => {
   const errors = [];
@@ -125,7 +125,7 @@ const validateFields = (data, validationRules, isFullValidation = true) => {
   if (!!data === false || Object.keys(data).length === 0) {
     return {
       isValid: false,
-      error: { status: 400, code: 'VALIDATION_ERROR', message: 'No data provided' },
+      error: { status: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'No data provided' },
     };
   }
 
@@ -194,7 +194,7 @@ const validateFields = (data, validationRules, isFullValidation = true) => {
   return errors.length > 0
     ? {
         isValid: false,
-        error: { status: 400, code: 'VALIDATION_ERROR', message: 'Validation failed', details: errors },
+        error: { status: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'Validation failed', details: errors },
       }
     : { isValid: true, data: normalized };
 };
@@ -290,7 +290,7 @@ export const validateQueryParams = (queryParams) => {
   ) {
     return {
       isValid: false,
-      error: { status: 400, code: 'VALIDATION_ERROR', message: 'min_price must be less than max_price' },
+      error: { status: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'min_price must be less than max_price' },
     };
   }
 

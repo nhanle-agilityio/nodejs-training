@@ -1,6 +1,7 @@
 import express from 'express';
 import { initDatabase } from './database/db.js';
 import eventRoutes from './routes/eventRoutes.js';
+import { ERROR_CODES } from './constants/index.js';
 
 const app = express();
 const port = process.env.PORT;
@@ -18,21 +19,18 @@ app.use('/events', eventRoutes);
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
-    error: {
-      code: 'NOT_FOUND',
-      message: `Resource not found for URL: ${req.originalUrl}`,
-    },
+    code: ERROR_CODES.NOT_FOUND,
+    message: `Resource not found for URL: ${req.originalUrl}`,
   });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({
-    error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred',
-    },
+  res.status(err.status || 500).json({
+    code: err.code || ERROR_CODES.INTERNAL_SERVER_ERROR,
+    message: err.message || 'An unexpected error occurred',
+    details: err.details || undefined,
   });
 });
 

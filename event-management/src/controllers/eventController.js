@@ -18,11 +18,6 @@ export const updateEventHandler = async (req, res, next) => {
   try {
     const result = await req.eventRepository.updateEvent(req.body, req.params.id);
 
-    if (result.error) {
-      const { status, ...errorBody } = result.error;
-      return res.status(status).json(errorBody);
-    }
-
     res.status(200).json(result);
   } catch (error) {
     next(error);
@@ -34,12 +29,7 @@ export const updateEventHandler = async (req, res, next) => {
  */
 export const deleteEventHandler = async (req, res, next) => {
   try {
-    const result = await req.eventRepository.deleteEvent(req.params.id);
-
-    if (result.error) {
-      const { status, ...errorBody } = result.error;
-      return res.status(status).json(errorBody);
-    }
+    await req.eventRepository.deleteEvent(req.params.id);
 
     res.status(204).send();
   } catch (error) {
@@ -54,11 +44,6 @@ export const getEventHandler = async (req, res, next) => {
   try {
     const event = await req.eventRepository.getEventById(req.params.id);
 
-    if (event.error) {
-      const { status, ...errorBody } = event.error;
-      return res.status(status).json(errorBody);
-    }
-
     res.status(200).json(event);
   } catch (error) {
     next(error);
@@ -72,11 +57,6 @@ export const getEventsHandler = async (req, res, next) => {
   try {
     const results = await req.eventRepository.getAllEvents(req.query);
 
-    if (results.error) {
-      const { status, ...errorBody } = results.error;
-      return res.status(status).json(errorBody);
-    }
-
     res.status(200).json(results);
   } catch (error) {
     next(error);
@@ -89,11 +69,6 @@ export const getEventsHandler = async (req, res, next) => {
 export const partialUpdateEventHandler = async (req, res, next) => {
   try {
     const result = await req.eventRepository.partialUpdateEvent(req.body, req.params.id);
-
-    if (result.error) {
-      const { status, ...errorBody } = result.error;
-      return res.status(status).json(errorBody);
-    }
 
     res.status(200).json(result);
   } catch (error) {

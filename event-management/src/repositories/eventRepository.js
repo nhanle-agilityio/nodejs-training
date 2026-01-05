@@ -9,6 +9,7 @@ import {
 } from './query-template/events.js';
 import { PAGE_SIZE, PAGE_NUMBER, EVENT_STATUS } from '../constants/index.js';
 import { buildOrderBy } from '../utils/queryBuilder.js';
+import { NotFoundError, InternalServerError } from '../utils/customErrors.js';
 
 export class EventRepository {
   constructor(db) {
@@ -30,19 +31,13 @@ export class EventRepository {
       ]);
 
       if (!result || !result?.lastID) {
-        return {
-          error: {
-            status: 500,
-            code: 'CREATE_FAILED',
-            message: 'Failed to create event',
-          },
-        };
+        throw new InternalServerError('Failed to create event');
       }
 
       return this.getEventById(result.lastID);
     } catch (error) {
       console.error('Error creating event:', error);
-      throw error;
+      throw new InternalServerError('Failed to create event');
     }
   }
 
@@ -62,19 +57,13 @@ export class EventRepository {
       ]);
 
       if (result.changes === 0) {
-        return {
-          error: {
-            status: 404,
-            code: 'NOT_FOUND',
-            message: `Event not found with id: ${id}`,
-          },
-        };
+        throw new NotFoundError(`Event not found with id: ${id}`);
       }
 
       return this.getEventById(id);
     } catch (error) {
       console.error('Error updating event:', error);
-      throw error;
+      throw new InternalServerError('Failed to update event');
     }
   }
 
@@ -82,19 +71,13 @@ export class EventRepository {
     try {
       const result = await this.db.run(DELETE_EVENT, id);
       if (result.changes === 0) {
-        return {
-          error: {
-            status: 404,
-            code: 'NOT_FOUND',
-            message: `Event not found with id: ${id}`,
-          },
-        };
+        throw new NotFoundError(`Event not found with id: ${id}`);
       }
 
       return result;
     } catch (error) {
       console.error('Error deleting event:', error);
-      throw error;
+      throw new InternalServerError('Failed to delete event');
     }
   }
 
@@ -103,18 +86,12 @@ export class EventRepository {
       const event = await this.db.get(GET_EVENT_BY_ID, id);
 
       if (!event) {
-        return {
-          error: {
-            status: 404,
-            code: 'NOT_FOUND',
-            message: `Event not found with id: ${id}`,
-          },
-        };
+        throw new NotFoundError(`Event not found with id: ${id}`);
       }
       return event;
     } catch (error) {
       console.error('Error getting event by id:', error);
-      throw error;
+      throw new InternalServerError('Failed to get event by id');
     }
   }
 
@@ -171,7 +148,7 @@ export class EventRepository {
       };
     } catch (error) {
       console.error('Error getting events:', error);
-      throw error;
+      throw new InternalServerError('Failed to get events');
     }
   }
 
@@ -190,18 +167,12 @@ export class EventRepository {
       ]);
 
       if (result.changes === 0) {
-        return {
-          error: {
-            status: 404,
-            code: 'NOT_FOUND',
-            message: `Event not found with id: ${id}`,
-          },
-        };
+        throw new NotFoundError(`Event not found with id: ${id}`);
       }
       return this.getEventById(id);
     } catch (error) {
       console.error('Error partial updating event:', error);
-      throw error;
+      throw new InternalServerError('Failed to partial update event');
     }
   }
 }
