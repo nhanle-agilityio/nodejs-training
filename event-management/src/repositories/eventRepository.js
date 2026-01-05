@@ -29,6 +29,16 @@ export class EventRepository {
         now,
       ]);
 
+      if (!result || !result?.lastID) {
+        return {
+          error: {
+            status: 500,
+            code: 'CREATE_FAILED',
+            message: 'Failed to create event',
+          },
+        };
+      }
+
       return this.getEventById(result.lastID);
     } catch (error) {
       console.error('Error creating event:', error);

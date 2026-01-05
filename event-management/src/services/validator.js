@@ -276,5 +276,23 @@ const queryParamsValidation = {
 };
 
 export const validateQueryParams = (queryParams) => {
-  return validateFields(queryParams, queryParamsValidation, false);
+  const validateResult = validateFields(queryParams, queryParamsValidation, false);
+
+  if (!validateResult.isValid) {
+    return validateResult;
+  }
+
+  // handle validate for min_price and max_price
+  if (
+    validateResult.data.min_price &&
+    validateResult.data.max_price &&
+    validateResult.data.min_price > validateResult.data.max_price
+  ) {
+    return {
+      isValid: false,
+      error: { status: 400, code: 'VALIDATION_ERROR', message: 'min_price must be less than max_price' },
+    };
+  }
+
+  return validateResult;
 };

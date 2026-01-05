@@ -17,18 +17,23 @@ export const initDatabase = async () => {
     return db;
   }
 
-  const dbPath = join(__dirname, process.env.DATABASE_PATH);
+  try {
+    const dbPath = join(__dirname, process.env.DATABASE_PATH);
 
-  db = await open({
-    filename: dbPath,
-    driver: sqlite3.Database,
-  });
+    db = await open({
+      filename: dbPath,
+      driver: sqlite3.Database,
+    });
 
-  // Create events table
-  await db.exec(CREATE_TABLE_EVENTS);
+    // Create events table
+    await db.exec(CREATE_TABLE_EVENTS);
 
-  console.log('Database initialized successfully');
-  return db;
+    console.log('Database initialized successfully');
+    return db;
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    throw error;
+  }
 };
 
 /**
