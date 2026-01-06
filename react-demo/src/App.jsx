@@ -1,5 +1,8 @@
-import { Link, NavLink, Route, Routes } from 'react-router-dom'
+import { Link, Route, Routes } from 'react-router-dom'
 import EventList from './pages/EventList.jsx'
+import EventCreate from './pages/EventCreate.jsx'
+import EventDetail from './pages/EventDetail.jsx'
+import EventEdit from './pages/EventEdit.jsx'
 
 const App = () => {
   return (
@@ -19,6 +22,9 @@ const App = () => {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Routes>
           <Route path="/" element={<EventList />} />
+          <Route path="/events/new" element={<EventCreate />} />
+          <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/events/:id/edit" element={<EventEdit />} />
           <Route
             path="*"
             element={
