@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { initDatabase } from './database/db.js';
 import eventRoutes from './routes/eventRoutes.js';
 import { ERROR_CODES } from './constants/index.js';
@@ -7,6 +8,12 @@ const app = express();
 const port = process.env.PORT;
 
 // Middleware
+app.use(
+  cors({
+    origin: process.env.CLIENT_ORIGIN,
+  }),
+);
+
 app.use(express.json());
 
 // Routes
