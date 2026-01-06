@@ -22,7 +22,7 @@ export const CREATE_EVENT = `
 `;
 
 export const UPDATE_EVENT = `
-  UPDATE events SET name = ?, description = ?, location = ?, date = ?, ticketPrice = ?, capacity = ?, updatedAt = ? WHERE id = ?
+  UPDATE events SET name = ?, description = ?, location = ?, date = ?, ticketPrice = ?, capacity = ?, updatedAt = ? WHERE id = ? AND deleteAt is NULL
 `;
 
 export const DELETE_EVENT = `
@@ -42,5 +42,5 @@ export const GET_EVENTS_COUNT = `
 `;
 
 export const PARTIAL_UPDATE_EVENT = `
-  UPDATE events SET name = COALESCE(?, name), description = COALESCE(?, description), location = COALESCE(?, location), date = COALESCE(?, date), ticketPrice = COALESCE(?, ticketPrice), capacity = COALESCE(?, capacity), updatedAt = ? WHERE id = ?
+  UPDATE events SET name = COALESCE(?, name), description = COALESCE(?, description), location = COALESCE(?, location), date = COALESCE(?, date), ticketPrice = COALESCE(?, ticketPrice), capacity = COALESCE(?, capacity), updatedAt = ? WHERE id = ? AND deleteAt is NULL
 `;
