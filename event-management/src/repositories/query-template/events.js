@@ -13,6 +13,9 @@ export const CREATE_TABLE_EVENTS = `
   );
 `;
 
+export const EVENT_SELECT_COLUMNS =
+  'id, name, description, location, date, ticketPrice, capacity, createdAt, updatedAt';
+
 export const CREATE_EVENT = `
   INSERT INTO events (name, description, location, date, ticketPrice, capacity, createdAt, updatedAt)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -27,11 +30,11 @@ export const DELETE_EVENT = `
 `;
 
 export const GET_EVENT_BY_ID = `
-  SELECT * FROM events WHERE id = ? AND deleteAt is NULL
+  SELECT ${EVENT_SELECT_COLUMNS} FROM events WHERE id = ? AND deleteAt is NULL
 `;
 
 export const GET_ALL_EVENTS = `
-  SELECT * FROM events WHERE deleteAt is NULL
+  SELECT ${EVENT_SELECT_COLUMNS} FROM events WHERE deleteAt is NULL
 `;
 
 export const GET_EVENTS_COUNT = `
