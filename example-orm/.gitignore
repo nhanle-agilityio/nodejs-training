@@ -1,0 +1,22 @@
+# SQLite database file
+*.sqlite
+*.sqlite3
+*.db
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
