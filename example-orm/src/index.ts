@@ -1,6 +1,9 @@
 import express, { Request, Response } from "express"
 import { AppDataSource } from "./data-source"
 import { User } from "./entity/User"
+import { Post } from "./entity/Post"
+import { Category } from "./entity/Category"
+import { Comment } from "./entity/Comment"
 
 const app = express()
 app.use(express.json())
@@ -62,5 +65,52 @@ app.post("/users", async (req: Request, res: Response) => {
         res.status(201).json(savedUser)
     } catch (error) {
         res.status(500).json({ error: "Failed to create user" })
+    }
+})
+
+// GET /em/users - Get all users using EntityManager
+app.get("/em/users", async (req: Request, res: Response) => {
+    try {
+        const entityManager = AppDataSource.manager
+        const users = await entityManager.find(User)
+        res.json(users)
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch users", details: error instanceof Error ? error.message : String(error) })
+    }
+})
+
+// GET /em/users/:id - Get user by ID using EntityManager
+app.get("/em/users/:id", async (req: Request, res: Response) => {
+    try {
+        const entityManager = AppDataSource.manager
+        const user = await entityManager.findOne(User, { where: { id: parseInt(req.params.id) } })
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" })
+        }
+        
+        res.json(user)
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch user", details: error instanceof Error ? error.message : String(error) })
+    }
+})
+
+// POST /em/users - Create a new user using EntityManager
+app.post("/em/users", async (req: Request, res: Response) => {
+    try {
+        const entityManager = AppDataSource.manager
+        const { firstName, lastName, age, isActive } = req.body
+
+        const user = entityManager.create(User, {
+            firstName,
+            lastName,
+            age,
+            isActive: isActive !== undefined ? isActive : true
+        })
+
+        const savedUser = await entityManager.save(user)
+        res.status(201).json(savedUser)
+    } catch (error) {
+        res.status(500).json({ error: "Failed to create user", details: error instanceof Error ? error.message : String(error) })
     }
 })
