@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getEvents, deleteEvent } from '../services/eventService'
 
@@ -12,13 +12,47 @@ const EventList = () => {
   const [total, setTotal] = useState(null)
   const [lastPage, setLastPage] = useState(1)
   const [deletingId, setDeletingId] = useState(null)
+  const [locationQuery, setLocationQuery] = useState('')
+  const [debouncedLocationQuery, setDebouncedLocationQuery] = useState('')
+  const [sort, setSort] = useState('date:desc')
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'date:desc', label: 'Date (newest first)' },
+      { value: 'date:asc', label: 'Date (oldest first)' },
+      { value: 'name:asc', label: 'Name (A → Z)' },
+      { value: 'name:desc', label: 'Name (Z → A)' },
+      { value: 'location:asc', label: 'Location (A → Z)' },
+      { value: 'location:desc', label: 'Location (Z → A)' },
+      { value: 'ticketPrice:asc', label: 'Price (low → high)' },
+      { value: 'ticketPrice:desc', label: 'Price (high → low)' },
+      { value: 'capacity:asc', label: 'Capacity (low → high)' },
+      { value: 'capacity:desc', label: 'Capacity (high → low)' },
+      { value: 'createdAt:desc', label: 'Created (newest first)' },
+      { value: 'updatedAt:desc', label: 'Updated (newest first)' },
+    ],
+    [],
+  )
+
+  // Debounce search input to avoid spamming the API on every keypress
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedLocationQuery(locationQuery.trim())
+    }, 300)
+    return () => clearTimeout(t)
+  }, [locationQuery])
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         setLoading(true)
         setError(null)
-        const data = await getEvents({ page, limit: pageSize })
+        const data = await getEvents({
+          page,
+          limit: pageSize,
+          location: debouncedLocationQuery || undefined,
+          sort: sort || undefined,
+        })
         // API is expected to return { data: [...], meta: { total, page, last_page } }
         const items = Array.isArray(data) ? data : data.data || []
         setEvents(items)
@@ -37,7 +71,7 @@ const EventList = () => {
     }
 
     fetchEvents()
-  }, [page, pageSize])
+  }, [page, pageSize, debouncedLocationQuery, sort])
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this event?')) {
@@ -48,7 +82,12 @@ const EventList = () => {
       setDeletingId(id)
       await deleteEvent(id)
       // Refresh the list
-      const data = await getEvents({ page, limit: pageSize })
+      const data = await getEvents({
+        page,
+        limit: pageSize,
+        location: debouncedLocationQuery || undefined,
+        sort: sort || undefined,
+      })
       const items = Array.isArray(data) ? data : data.data || []
       setEvents(items)
       if (data.meta) {
@@ -163,6 +202,81 @@ const EventList = () => {
           </div>
         ) : (
           <>
+            {/* Search + Sort */}
+            <div className="flex flex-col gap-3 border-b border-gray-200 bg-white px-6 py-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="w-full sm:max-w-md">
+                <label
+                  htmlFor="locationSearch"
+                  className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
+                >
+                  Search
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      id="locationSearch"
+                      type="text"
+                      value={locationQuery}
+                      onChange={(e) => {
+                        setLocationQuery(e.target.value)
+                        setPage(1)
+                      }}
+                      placeholder="Filter by location (partial match)"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    {locationQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocationQuery('')
+                          setPage(1)
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-gray-600"
+                        aria-label="Clear search"
+                        title="Clear"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 8.586 4.293 2.879A1 1 0 1 0 2.879 4.293L8.586 10l-5.707 5.707a1 1 0 1 0 1.414 1.414L10 11.414l5.707 5.707a1 1 0 0 0 1.414-1.414L11.414 10l5.707-5.707a1 1 0 0 0-1.414-1.414L10 8.586Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full sm:w-64">
+                <label
+                  htmlFor="sortSelect"
+                  className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
+                >
+                  Sort
+                </label>
+                <select
+                  id="sortSelect"
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value)
+                    setPage(1)
+                  }}
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  {sortOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
