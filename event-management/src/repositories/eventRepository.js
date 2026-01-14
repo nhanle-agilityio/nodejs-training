@@ -1,69 +1,34 @@
-import {
-  CREATE_EVENT,
-  GET_EVENT_BY_ID,
-  GET_ALL_EVENTS,
-  UPDATE_EVENT,
-  DELETE_EVENT,
-  GET_EVENTS_COUNT,
-  PARTIAL_UPDATE_EVENT,
-} from './query-template/events.js';
+import { LessThanOrEqual, MoreThanOrEqual, Like, Between } from 'typeorm';
 import { PAGE_SIZE, PAGE_NUMBER, EVENT_STATUS } from '../constants/index.js';
 import { buildOrderBy } from '../utils/queryBuilder.js';
 import { NotFoundError, InternalServerError, CustomError } from '../utils/customErrors.js';
 
 export class EventRepository {
-  constructor(db) {
-    this.db = db;
+  constructor(repository) {
+    this.repository = repository;
   }
 
-  async createEvent(event) {
+  async createEvent(eventData) {
     try {
-      const now = new Date().toISOString();
-      const result = await this.db.run(CREATE_EVENT, [
-        event.name,
-        event.description,
-        event.location,
-        event.date,
-        event.ticketPrice,
-        event.capacity,
-        now,
-        now,
-      ]);
-
-      if (!result || !result?.lastID) {
-        throw new InternalServerError('Failed to create event');
-      }
-
-      return this.getEventById(result.lastID);
+      const newEvent = await this.repository.create(eventData);
+      const savedEvent = await this.repository.save(newEvent);
+      return savedEvent;
     } catch (error) {
       console.error('Error creating event:', error);
-      if (error instanceof CustomError) {
-        throw error;
-      }
       throw new InternalServerError('Failed to create event');
     }
   }
 
   async updateEvent(event, id) {
     try {
-      const now = new Date().toISOString();
+      const existingEvent = await this.repository.findOne({ where: { id } });
 
-      const result = await this.db.run(UPDATE_EVENT, [
-        event.name,
-        event.description,
-        event.location,
-        event.date,
-        event.ticketPrice,
-        event.capacity,
-        now,
-        id,
-      ]);
-
-      if (result.changes === 0) {
+      if (!existingEvent) {
         throw new NotFoundError(`Event not found with id: ${id}`);
       }
 
-      return this.getEventById(id);
+      this.repository.merge(existingEvent, event);
+      return this.repository.save(existingEvent);
     } catch (error) {
       console.error('Error updating event:', error);
       if (error instanceof CustomError) {
@@ -75,13 +40,11 @@ export class EventRepository {
 
   async deleteEvent(id) {
     try {
-      const result = await this.db.run(DELETE_EVENT, id);
+      const result = await this.repository.softDelete(id);
 
-      if (result.changes === 0) {
+      if (result.affected === 0) {
         throw new NotFoundError(`Event not found with id: ${id}`);
       }
-
-      return result;
     } catch (error) {
       console.error('Error deleting event:', error);
       if (error instanceof CustomError) {
@@ -93,7 +56,7 @@ export class EventRepository {
 
   async getEventById(id) {
     try {
-      const event = await this.db.get(GET_EVENT_BY_ID, id);
+      const event = await this.repository.findOne({ where: { id } });
 
       if (!event) {
         throw new NotFoundError(`Event not found with id: ${id}`);
@@ -111,52 +74,49 @@ export class EventRepository {
   async getAllEvents(paramsFilters) {
     try {
       const { location, status, min_price, max_price, page, limit, sort } = paramsFilters;
-      const params = [];
-      const pageSize = limit || PAGE_SIZE;
-      const pageNumber = page || PAGE_NUMBER;
-      let queryFilters = '';
+      const pageSize = Number(limit) || PAGE_SIZE;
+      const pageNumber = Number(page) || PAGE_NUMBER;
+
+      // Build where conditions
+      const where = {};
 
       if (location) {
-        queryFilters += ' AND location LIKE ?';
-        params.push(`%${location}%`);
+        where.location = Like(`%${location}%`);
       }
 
-      if (min_price) {
-        queryFilters += ' AND ticketPrice >= ?';
-        params.push(min_price);
-      }
-
-      if (max_price) {
-        queryFilters += ' AND ticketPrice <= ?';
-        params.push(max_price);
+      if (min_price && max_price) {
+        where.ticketPrice = Between(min_price, max_price);
+      } else if (min_price) {
+        where.ticketPrice = MoreThanOrEqual(min_price);
+      } else if (max_price) {
+        where.ticketPrice = LessThanOrEqual(max_price);
       }
 
       if (status) {
-        const now = new Date().toISOString();
+        const now = new Date();
         if (status === EVENT_STATUS.UPCOMING) {
-          queryFilters += ' AND date >= ?';
-          params.push(now);
+          where.date = MoreThanOrEqual(now);
         } else if (status === EVENT_STATUS.PAST) {
-          queryFilters += ' AND date <= ?';
-          params.push(now);
+          where.date = LessThanOrEqual(now);
         }
       }
 
-      const orderByQuery = buildOrderBy(sort);
-      const limitQuery = `LIMIT ${pageSize} OFFSET ${(pageNumber - 1) * pageSize}`;
+      const order = buildOrderBy(sort);
 
-      // Special case: Create an additional query to get total events (before pagination)
-      const totalEventsCount = await this.db.get(`${GET_EVENTS_COUNT} ${queryFilters}`, params);
-
-      // Get events with pagination and sorting
-      const results = await this.db.all(`${GET_ALL_EVENTS} ${queryFilters} ${orderByQuery} ${limitQuery}`, params);
+      // Get events with pagination, sorting, and total count
+      const [results, total] = await this.repository.findAndCount({
+        where,
+        order,
+        skip: (pageNumber - 1) * pageSize,
+        take: pageSize,
+      });
 
       return {
         data: results,
         meta: {
-          total: totalEventsCount.total_events,
+          total,
           page: pageNumber,
-          last_page: Math.ceil(totalEventsCount.total_events / pageSize),
+          last_page: Math.ceil(total / pageSize),
         },
       };
     } catch (error) {
@@ -167,22 +127,17 @@ export class EventRepository {
 
   async partialUpdateEvent(event, id) {
     try {
-      const now = new Date().toISOString();
-      const result = await this.db.run(PARTIAL_UPDATE_EVENT, [
-        event.name,
-        event.description,
-        event.location,
-        event.date,
-        event.ticketPrice,
-        event.capacity,
-        now,
-        id,
-      ]);
+      const existingEvent = await this.repository.findOne({ where: { id } });
 
-      if (result.changes === 0) {
+      if (!existingEvent) {
         throw new NotFoundError(`Event not found with id: ${id}`);
       }
-      return this.getEventById(id);
+
+      // Merge only provided fields
+      this.repository.merge(existingEvent, event);
+      const updatedEvent = await this.repository.save(existingEvent);
+
+      return updatedEvent;
     } catch (error) {
       console.error('Error partial updating event:', error);
       if (error instanceof CustomError) {
