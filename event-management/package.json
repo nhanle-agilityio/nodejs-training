@@ -10,6 +10,7 @@
     "start": "node --env-file=.env src/app.js",
     "dev": "nodemon --env-file=.env src/app.js",
     "migration:generate": "typeorm migration:generate src/migrations/EventChanges -d src/config/data-source.js -o && sed -i 's/module.exports = class/export class/g' src/migrations/*.js",
+    "migration:generate:user": "typeorm migration:generate src/migrations/CreateUser -d src/config/data-source.js -o && sed -i 's/module.exports = class/export class/g' src/migrations/*.js",
     "migration:run": "typeorm migration:run -d src/config/data-source.js",
     "migration:revert": "typeorm migration:revert -d src/config/data-source.js",
     "migration:show": "typeorm migration:show -d src/config/data-source.js",
@@ -19,8 +20,14 @@
     "format:check": "prettier --check \"**/*.{js,json,md}\""
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
+    "install": "^0.13.0",
+    "jwt-simple": "^0.5.6",
+    "npm": "^11.7.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",

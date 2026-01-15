@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { Event } from '../entities/Event.js';
+import { User } from '../entities/User.js';
 
 import { DataSource } from 'typeorm';
 export const AppDataSource = new DataSource({
@@ -7,7 +8,7 @@ export const AppDataSource = new DataSource({
   database: 'database.sqlite',
   synchronize: false,
   logging: false,
-  entities: [Event],
+  entities: [Event, User],
   migrations: ['src/migrations/*.js'],
   migrationsTableName: 'migrations',
   migrationsRun: false,
