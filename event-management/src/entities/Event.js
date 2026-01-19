@@ -38,6 +38,10 @@ export const Event = new EntitySchema({
       type: 'int',
       nullable: false,
     },
+    userId: {
+      type: 'int',
+      nullable: true,
+    },
     createdAt: {
       type: 'datetime',
       createDate: true,
@@ -49,6 +53,18 @@ export const Event = new EntitySchema({
     deletedAt: {
       type: 'datetime',
       deleteDate: true,
+    },
+  },
+  relations: {
+    user: {
+      type: 'many-to-one',
+      target: 'User',
+      inverseSide: 'events',
+      joinColumn: {
+        name: 'userId',
+        referencedColumnName: 'id',
+      },
+      nullable: true,
     },
   },
 });

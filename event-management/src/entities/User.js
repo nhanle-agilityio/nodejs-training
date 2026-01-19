@@ -39,4 +39,11 @@ export const User = new EntitySchema({
       deleteDate: true,
     },
   },
+  relations: {
+    events: {
+      type: 'one-to-many',
+      target: 'Event',
+      inverseSide: 'user',
+    },
+  },
 });

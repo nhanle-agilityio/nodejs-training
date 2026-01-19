@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Event } from '../entities/Event.js';
 import { User } from '../entities/User.js';
+import { UserSubscriber } from '../subscribers/userSubscriber.js';
 
 import { DataSource } from 'typeorm';
 export const AppDataSource = new DataSource({
@@ -12,5 +13,5 @@ export const AppDataSource = new DataSource({
   migrations: ['src/migrations/*.js'],
   migrationsTableName: 'migrations',
   migrationsRun: false,
-  subscribers: [],
+  subscribers: [new UserSubscriber()],
 });
