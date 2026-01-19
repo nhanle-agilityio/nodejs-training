@@ -3,7 +3,11 @@ import express from 'express';
 import cors from 'cors';
 import { ERROR_CODES } from './constants/index.js';
 import { AppDataSource } from './config/data-source.js';
+import { setupAuthMiddleware } from './middleware/auth.js';
 import eventRoutes from './routes/eventRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import userRegistrationRoutes from './routes/userRegistrationRoutes.js';
+import tokenRoutes from './routes/tokenRoutes.js';
 
 const app = express();
 const port = process.env.PORT;
@@ -24,12 +28,24 @@ const startServer = async () => {
     await AppDataSource.initialize();
     console.log('TypeORM Database initialized successfully');
 
+    // Setup authentication
+    setupAuthMiddleware(app);
+
+    // Initialize Passport middleware
+    app.use(app.auth.initialize());
+
     // Routes
     app.get('/', (req, res) => {
       res.send('Event Management API');
     });
 
-    app.use('/events', eventRoutes);
+    // Public routes (no authentication required)
+    app.use('/users', userRegistrationRoutes);
+    app.use('/token', tokenRoutes);
+
+    // Protected routes (authentication required)
+    app.use('/user', app.auth.authenticate(), userRoutes);
+    app.use('/events', app.auth.authenticate(), eventRoutes);
 
     // 404 handler
     app.use((req, res, next) => {

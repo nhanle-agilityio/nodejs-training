@@ -26,3 +26,9 @@ export class InternalServerError extends CustomError {
     super(message, 500, ERROR_CODES.INTERNAL_SERVER_ERROR, details);
   }
 }
+
+export class UnauthorizedError extends CustomError {
+  constructor(message, details) {
+    super(message, 401, ERROR_CODES.UNAUTHORIZED, details);
+  }
+}
