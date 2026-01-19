@@ -8,9 +8,10 @@ export class EventRepository {
     this.repository = repository;
   }
 
-  async createEvent(eventData) {
+  async createEvent(eventData, userId) {
     try {
-      const newEvent = await this.repository.create(eventData);
+      const eventWithUserId = { ...eventData, userId };
+      const newEvent = await this.repository.create(eventWithUserId);
       const savedEvent = await this.repository.save(newEvent);
       return savedEvent;
     } catch (error) {
@@ -19,9 +20,11 @@ export class EventRepository {
     }
   }
 
-  async updateEvent(event, id) {
+  async updateEvent(event, id, userId) {
     try {
-      const existingEvent = await this.repository.findOne({ where: { id } });
+      const existingEvent = await this.repository.findOne({
+        where: { id, userId },
+      });
 
       if (!existingEvent) {
         throw new NotFoundError(`Event not found with id: ${id}`);
@@ -38,8 +41,16 @@ export class EventRepository {
     }
   }
 
-  async deleteEvent(id) {
+  async deleteEvent(id, userId) {
     try {
+      const existingEvent = await this.repository.findOne({
+        where: { id, userId },
+      });
+
+      if (!existingEvent) {
+        throw new NotFoundError(`Event not found with id: ${id}`);
+      }
+
       const result = await this.repository.softDelete(id);
 
       if (result.affected === 0) {
@@ -54,9 +65,11 @@ export class EventRepository {
     }
   }
 
-  async getEventById(id) {
+  async getEventById(id, userId) {
     try {
-      const event = await this.repository.findOne({ where: { id } });
+      const event = await this.repository.findOne({
+        where: { id, userId },
+      });
 
       if (!event) {
         throw new NotFoundError(`Event not found with id: ${id}`);
@@ -71,14 +84,13 @@ export class EventRepository {
     }
   }
 
-  async getAllEvents(paramsFilters) {
+  async getAllEvents(paramsFilters, userId) {
     try {
       const { location, status, min_price, max_price, page, limit, sort } = paramsFilters;
       const pageSize = Number(limit) || PAGE_SIZE;
       const pageNumber = Number(page) || PAGE_NUMBER;
 
-      // Build where conditions
-      const where = {};
+      const where = { userId };
 
       if (location) {
         where.location = Like(`%${location}%`);
@@ -125,9 +137,11 @@ export class EventRepository {
     }
   }
 
-  async partialUpdateEvent(event, id) {
+  async partialUpdateEvent(event, id, userId) {
     try {
-      const existingEvent = await this.repository.findOne({ where: { id } });
+      const existingEvent = await this.repository.findOne({
+        where: { id, userId },
+      });
 
       if (!existingEvent) {
         throw new NotFoundError(`Event not found with id: ${id}`);
