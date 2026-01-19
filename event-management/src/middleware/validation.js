@@ -1,4 +1,4 @@
-import { validateEvent, validatePartialUpdateEvent, validateQueryParams } from '../services/validator.js';
+import { validateEvent, validatePartialUpdateEvent, validateQueryParams } from '../services/eventValidator.js';
 import { ValidationError } from '../utils/customErrors.js';
 
 /**
