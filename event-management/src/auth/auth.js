@@ -21,6 +21,11 @@ export const setupAuth = (app) => {
   // Create JWT strategy
   const strategy = new Strategy(params, async (payload, done) => {
     try {
+      // Check if token is expired
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+        return done(null, false, { message: 'token_expired' });
+      }
+
       // Find user by ID from JWT payload
       const user = await userRepository.findOne({
         where: { id: payload.id },
@@ -31,7 +36,7 @@ export const setupAuth = (app) => {
       }
 
       // User not found
-      return done(null, false);
+      return done(null, false, { message: 'user_not_found' });
     } catch (error) {
       // Error occurred during user lookup
       return done(error, null);
