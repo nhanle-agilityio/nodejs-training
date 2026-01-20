@@ -45,5 +45,10 @@ export const User = new EntitySchema({
       target: 'Event',
       inverseSide: 'user',
     },
+    refreshTokens: {
+      type: 'one-to-many',
+      target: 'RefreshToken',
+      inverseSide: 'user',
+    },
   },
 });

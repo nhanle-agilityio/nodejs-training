@@ -15,3 +15,7 @@ export const ERROR_CODES = {
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
   UNAUTHORIZED: 'UNAUTHORIZED',
 };
+
+// Token expiration values (in seconds)
+export const ACCESS_TOKEN_EXPIRES_IN = 300; // 5 minutes
+export const REFRESH_TOKEN_EXPIRES_IN = 604800; // 7 days
