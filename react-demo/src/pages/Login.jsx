@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { login } from '../services/authService'
+import { useAuth } from '../hooks/useAuth'
 
 const Login = () => {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -15,11 +16,8 @@ const Login = () => {
     try {
       setSubmitting(true)
       setError(null)
-      await login({ email, password })
-
-      // Reload app so auth state & headers are in sync everywhere
+      await login(email, password)
       navigate('/')
-      window.location.reload()
     } catch (err) {
       setError(err.message || 'Failed to login')
     } finally {

@@ -1,32 +1,31 @@
-import { useState } from 'react'
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Route, Routes, useNavigate } from 'react-router-dom'
 import EventList from './pages/EventList.jsx'
 import EventCreate from './pages/EventCreate.jsx'
 import EventDetail from './pages/EventDetail.jsx'
 import EventEdit from './pages/EventEdit.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import { clearToken, getToken } from './services/authService'
+import SessionExpirationModal from './components/SessionExpirationModal.jsx'
+import RequireAuth from './components/auth/RequireAuth.jsx'
+import { SessionProvider } from './contexts/SessionContext.jsx'
+import { AuthProvider } from './contexts/AuthContext.jsx'
+import { useAuth } from './hooks/useAuth'
 
-const RequireAuth = ({ children }) => {
-  const location = useLocation()
-  const hasToken = !!getToken()
+const AppContent = () => {
+  const navigate = useNavigate()
+  const { isAuthenticated, isLoading, logout, user } = useAuth()
 
-  if (!hasToken) {
-    return <Navigate to="/login" replace state={{ from: location }} />
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
   }
 
-  return children
-}
-
-const App = () => {
-  const navigate = useNavigate()
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!getToken())
-
-  const handleLogout = () => {
-    clearToken()
-    setIsAuthenticated(false)
-    navigate('/login')
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    )
   }
 
   return (
@@ -48,13 +47,20 @@ const App = () => {
               Events
             </Link>
             {isAuthenticated ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-lg bg-gray-900 px-3 py-1.5 font-medium text-white shadow-sm hover:bg-gray-800"
-              >
-                Logout
-              </button>
+              <div className="flex items-center gap-3">
+                {user && (
+                  <span className="text-gray-600">
+                    {user.name || user.email}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-lg bg-gray-900 px-3 py-1.5 font-medium text-white shadow-sm hover:bg-gray-800"
+                >
+                  Logout
+                </button>
+              </div>
             ) : (
               <>
                 <Link
@@ -121,7 +127,19 @@ const App = () => {
           />
         </Routes>
       </main>
+
+      <SessionExpirationModal />
     </div>
+  )
+}
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <SessionProvider>
+        <AppContent />
+      </SessionProvider>
+    </AuthProvider>
   )
 }
 

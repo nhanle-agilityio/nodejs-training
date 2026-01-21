@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { register } from '../services/authService'
+import { useAuth } from '../hooks/useAuth'
 
 const Register = () => {
   const navigate = useNavigate()
+  const { register } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,7 +20,7 @@ const Register = () => {
       setError(null)
       setSuccess(false)
 
-      await register({ name, email, password })
+      await register(name, email, password)
       setSuccess(true)
 
       // Redirect to login after a short delay so user sees the message
