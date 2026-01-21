@@ -1,6 +1,7 @@
 import jwt from 'jwt-simple';
 import { config } from '../config/config.js';
 import { UserRepository } from '../repositories/userRepository.js';
+import { ERROR_CODES } from '../constants/index.js';
 
 /**
  * Generate access token with expiration
@@ -24,16 +25,14 @@ const generateAccessToken = (userId) => {
  */
 export const generateTokenHandler = async (req, res, next) => {
   try {
-    // Validate email and password are provided
-    if (!req.body.email || !req.body.password) {
-      return res.sendStatus(401);
-    }
-
     const { email, password } = req.body;
     const user = await req.userRepository.findUserByEmail(email);
 
     if (!user || !UserRepository.isPassword(user.password, password)) {
-      return res.sendStatus(401);
+      return res.status(401).json({
+        code: ERROR_CODES.UNAUTHORIZED,
+        message: 'Invalid email or password',
+      });
     }
 
     // Generate access token with expiration
@@ -50,7 +49,7 @@ export const generateTokenHandler = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error generating token:', error);
-    res.sendStatus(401);
+    next(error);
   }
 };
 
@@ -65,7 +64,10 @@ export const refreshTokenHandler = async (req, res, next) => {
     const storedToken = await req.refreshTokenRepository.findValidToken(refreshToken);
 
     if (!storedToken) {
-      return res.status(401).json({ error: 'invalid_refresh_token' });
+      return res.status(401).json({
+        code: ERROR_CODES.UNAUTHORIZED,
+        message: 'Invalid or expired refresh token',
+      });
     }
 
     // Mark old refresh token as used
@@ -85,7 +87,7 @@ export const refreshTokenHandler = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error refreshing token:', error);
-    res.status(401).json({ error: 'token_refresh_failed' });
+    next(error);
   }
 };
 
@@ -95,17 +97,21 @@ export const refreshTokenHandler = async (req, res, next) => {
 export const logoutHandler = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
+    const storedToken = await req.refreshTokenRepository.findValidToken(refreshToken);
+
+    if (!storedToken) {
+      return res.status(401).json({
+        code: ERROR_CODES.UNAUTHORIZED,
+        message: 'Invalid or expired refresh token',
+      });
+    }
 
     // Delete the refresh token from database
-    const deleted = await req.refreshTokenRepository.deleteToken(refreshToken);
-
-    if (!deleted) {
-      return res.status(400).json({ error: 'invalid_refresh_token' });
-    }
+    await req.refreshTokenRepository.deleteToken(refreshToken);
 
     res.status(204).send();
   } catch (error) {
     console.error('Error during logout:', error);
-    res.status(500).json({ error: 'logout_failed' });
+    next(error);
   }
 };
