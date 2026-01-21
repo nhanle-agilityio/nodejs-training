@@ -1,10 +1,12 @@
 # Event Management Frontend
 
-> A React application for managing events with full CRUD operations, built with Vite, React Router, and Tailwind CSS.
+> A React application for managing events with full CRUD operations, built with Vite, React Router, Tailwind CSS, and integrated with JWT authentication.
 
 ## Key Features
 
 - **Full CRUD Operations** - Create, read, update, and delete events with ease
+- **User Authentication** - Secure login, registration, and logout functionality
+- **Session Management** - Automatic token refresh and session expiration handling
 - **Search & Filter** - Find events quickly with built-in search functionality
 - **Pagination** - Efficiently navigate through large event lists
 
