@@ -7,12 +7,16 @@ import { UserRepository } from '../repositories/userRepository.js';
  */
 const generateAccessToken = (userId) => {
   const now = Math.floor(Date.now() / 1000);
+  const exp = now + config.accessTokenExpiresIn;
   const payload = {
     id: userId,
     iat: now,
-    exp: now + config.accessTokenExpiresIn,
+    exp,
   };
-  return jwt.encode(payload, config.jwtSecret);
+  return {
+    token: jwt.encode(payload, config.jwtSecret),
+    expiresAt: exp * 1000,
+  };
 };
 
 /**
@@ -33,7 +37,7 @@ export const generateTokenHandler = async (req, res, next) => {
     }
 
     // Generate access token with expiration
-    const accessToken = generateAccessToken(user.id);
+    const { token: accessToken, expiresAt } = generateAccessToken(user.id);
 
     // Generate and store refresh token
     const refreshTokenData = await req.refreshTokenRepository.createRefreshToken(user.id);
@@ -42,6 +46,7 @@ export const generateTokenHandler = async (req, res, next) => {
       accessToken,
       refreshToken: refreshTokenData.token,
       expiresIn: config.accessTokenExpiresIn,
+      expiresAt,
     });
   } catch (error) {
     console.error('Error generating token:', error);
@@ -67,7 +72,7 @@ export const refreshTokenHandler = async (req, res, next) => {
     await req.refreshTokenRepository.markAsUsed(storedToken.id);
 
     // Generate new access token
-    const accessToken = generateAccessToken(storedToken.userId);
+    const { token: accessToken, expiresAt } = generateAccessToken(storedToken.userId);
 
     // Generate new refresh token
     const newRefreshTokenData = await req.refreshTokenRepository.createRefreshToken(storedToken.userId);
@@ -76,6 +81,7 @@ export const refreshTokenHandler = async (req, res, next) => {
       accessToken,
       refreshToken: newRefreshTokenData.token,
       expiresIn: config.accessTokenExpiresIn,
+      expiresAt,
     });
   } catch (error) {
     console.error('Error refreshing token:', error);
