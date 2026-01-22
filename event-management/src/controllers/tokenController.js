@@ -10,7 +10,7 @@ const generateAccessToken = (userId) => {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + config.accessTokenExpiresIn;
   const payload = {
-    id: userId,
+    sub: userId,
     iat: now,
     exp,
   };

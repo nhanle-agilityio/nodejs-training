@@ -23,7 +23,7 @@ export const setupAuth = (app) => {
     try {
       // Find user by ID from JWT payload
       const user = await userRepository.findOne({
-        where: { id: payload.id },
+        where: { id: payload.sub },
       });
 
       if (user) {
