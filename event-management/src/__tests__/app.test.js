@@ -1,20 +1,20 @@
 import request from 'supertest';
 import { createApp } from '../app.js';
-import { AppDataSource } from '../config/data-source.js';
+import { TestDataSource } from '../config/test-data-source.js';
 
 describe('Event Management API - Root Endpoint', () => {
   let app;
 
   // Initialize database and app before all tests
   beforeAll(async () => {
-    // Create the app (this will initialize the database)
-    app = await createApp();
+    // Create the app with test data source (this will initialize the database)
+    app = await createApp(TestDataSource);
   });
 
   // Close database connection after all tests
   afterAll(async () => {
-    if (AppDataSource.isInitialized) {
-      await AppDataSource.destroy();
+    if (TestDataSource.isInitialized) {
+      await TestDataSource.destroy();
     }
   });
 

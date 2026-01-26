@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../../../app.js';
-import { AppDataSource } from '../../../config/data-source.js';
+import { TestDataSource } from '../../../config/test-data-source.js';
 import { createTestUserData, resetDatabase, getTestUser } from '../helpers/index.js';
 
 describe('E2E: Authentication Flow', () => {
@@ -10,12 +10,12 @@ describe('E2E: Authentication Flow', () => {
   let refreshToken;
 
   beforeAll(async () => {
-    app = await createApp();
+    app = await createApp(TestDataSource);
   });
 
   afterAll(async () => {
-    if (AppDataSource.isInitialized) {
-      await AppDataSource.destroy();
+    if (TestDataSource.isInitialized) {
+      await TestDataSource.destroy();
     }
   });
 

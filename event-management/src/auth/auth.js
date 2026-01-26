@@ -1,16 +1,16 @@
 import passport from 'passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
-import { AppDataSource } from '../config/data-source.js';
 import { User } from '../entities/User.js';
 import { config } from '../config/config.js';
 
 /**
  * Configure Passport JWT authentication strategy
  * @param {Object} app - Express application instance
+ * @param {Object} dataSource - TypeORM DataSource instance
  */
-export const setupAuth = (app) => {
+export const setupAuth = (app, dataSource) => {
   // Get User repository from TypeORM
-  const userRepository = AppDataSource.getRepository(User);
+  const userRepository = dataSource.getRepository(User);
 
   // Configure JWT strategy parameters
   const params = {

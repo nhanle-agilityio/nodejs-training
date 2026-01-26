@@ -1,4 +1,4 @@
-import { AppDataSource } from '../../../config/data-source.js';
+import { TestDataSource } from '../../../config/test-data-source.js';
 import { User } from '../../../entities/User.js';
 
 /**
@@ -17,6 +17,6 @@ export const createTestUserData = () => {
  * Get a test user by email
  */
 export const getTestUser = async (email) => {
-  const userRepository = AppDataSource.getRepository(User);
+  const userRepository = TestDataSource.getRepository(User);
   return await userRepository.findOne({ where: { email } });
 };

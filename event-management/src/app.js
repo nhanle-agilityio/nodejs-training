@@ -9,7 +9,7 @@ import userRoutes from './routes/userRoutes.js';
 import userRegistrationRoutes from './routes/userRegistrationRoutes.js';
 import tokenRoutes from './routes/tokenRoutes.js';
 
-export const createApp = async () => {
+export const createApp = async (dataSource = AppDataSource) => {
   const app = express();
 
   // Middleware
@@ -22,11 +22,14 @@ export const createApp = async () => {
   app.use(express.json());
 
   // Initialize the TypeORM data source
-  await AppDataSource.initialize();
+  await dataSource.initialize();
   console.log('TypeORM Database initialized successfully');
 
+  // Store data source in app for middleware access
+  app.dataSource = dataSource;
+
   // Setup authentication
-  setupAuthMiddleware(app);
+  setupAuthMiddleware(app, dataSource);
 
   // Initialize Passport middleware
   app.use(app.auth.initialize());

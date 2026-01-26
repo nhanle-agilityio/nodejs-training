@@ -1,4 +1,4 @@
-import { AppDataSource } from '../../../config/data-source.js';
+import { TestDataSource } from '../../../config/test-data-source.js';
 import { User } from '../../../entities/User.js';
 import { RefreshToken } from '../../../entities/RefreshToken.js';
 import { Event } from '../../../entities/Event.js';
@@ -7,8 +7,8 @@ import { Event } from '../../../entities/Event.js';
  * Initialize test database connection
  */
 export const initializeTestDatabase = async () => {
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize();
+  if (!TestDataSource.isInitialized) {
+    await TestDataSource.initialize();
   }
 };
 
@@ -16,14 +16,14 @@ export const initializeTestDatabase = async () => {
  * Reset database by clearing all tables
  */
 export const resetDatabase = async () => {
-  if (!AppDataSource.isInitialized) {
+  if (!TestDataSource.isInitialized) {
     await initializeTestDatabase();
   }
 
   // Get repositories
-  const userRepository = AppDataSource.getRepository(User);
-  const refreshTokenRepository = AppDataSource.getRepository(RefreshToken);
-  const eventRepository = AppDataSource.getRepository(Event);
+  const userRepository = TestDataSource.getRepository(User);
+  const refreshTokenRepository = TestDataSource.getRepository(RefreshToken);
+  const eventRepository = TestDataSource.getRepository(Event);
 
   // Delete all records
   await refreshTokenRepository.createQueryBuilder().delete().execute();
