@@ -1,11 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../../app.js';
 import { AppDataSource } from '../../../config/data-source.js';
-import {
-  createTestUserData,
-  resetDatabase,
-  getTestUser,
-} from '../helpers/index.js';
+import { createTestUserData, resetDatabase, getTestUser } from '../helpers/index.js';
 
 describe('E2E: Authentication Flow', () => {
   let app;
@@ -31,9 +27,7 @@ describe('E2E: Authentication Flow', () => {
     console.log('Step 1: Registering user...');
     userData = createTestUserData();
 
-    const registerResponse = await request(app)
-      .post('/users')
-      .send(userData);
+    const registerResponse = await request(app).post('/users').send(userData);
 
     expect(registerResponse.status).toBe(201);
     expect(registerResponse.body).toHaveProperty('id');
@@ -46,12 +40,10 @@ describe('E2E: Authentication Flow', () => {
     console.log('✓ User registered successfully');
 
     console.log('Step 2: Logging in...');
-    const loginResponse = await request(app)
-      .post('/token')
-      .send({
-        email: userData.email,
-        password: userData.password,
-      });
+    const loginResponse = await request(app).post('/token').send({
+      email: userData.email,
+      password: userData.password,
+    });
 
     expect(loginResponse.status).toBe(200);
     expect(loginResponse.body).toHaveProperty('accessToken');
@@ -70,9 +62,7 @@ describe('E2E: Authentication Flow', () => {
     console.log('✓ Login successful, tokens received');
 
     console.log('Step 3: Accessing protected route...');
-    const protectedResponse = await request(app)
-      .get('/user')
-      .set('Authorization', `Bearer ${accessToken}`);
+    const protectedResponse = await request(app).get('/user').set('Authorization', `Bearer ${accessToken}`);
 
     expect(protectedResponse.status).toBe(200);
     expect(protectedResponse.body).toHaveProperty('id');
@@ -83,9 +73,7 @@ describe('E2E: Authentication Flow', () => {
     console.log('✓ Protected route accessed successfully');
 
     console.log('Step 4: Refreshing access token...');
-    const refreshResponse = await request(app)
-      .post('/token/refresh')
-      .send({ refreshToken });
+    const refreshResponse = await request(app).post('/token/refresh').send({ refreshToken });
 
     expect(refreshResponse.status).toBe(200);
     expect(refreshResponse.body).toHaveProperty('accessToken');
@@ -111,9 +99,7 @@ describe('E2E: Authentication Flow', () => {
     console.log('✓ Token refreshed successfully');
 
     console.log('Step 5: Logging out...');
-    const logoutResponse = await request(app)
-      .post('/token/logout')
-      .send({ refreshToken: newRefreshToken });
+    const logoutResponse = await request(app).post('/token/logout').send({ refreshToken: newRefreshToken });
 
     // logout was successful
     expect(logoutResponse.status).toBe(204);
@@ -135,8 +121,7 @@ describe('E2E: Authentication Flow', () => {
 
   test('Should not access protected route without token', async () => {
     // Try to access protected route without token
-    const response = await request(app)
-      .get('/user');
+    const response = await request(app).get('/user');
 
     // Should return 401 Unauthorized
     expect(response.status).toBe(401);
@@ -144,9 +129,7 @@ describe('E2E: Authentication Flow', () => {
 
   test('Should not access protected route with invalid token', async () => {
     // Try to access protected route with invalid token
-    const response = await request(app)
-      .get('/user')
-      .set('Authorization', 'Bearer invalid-token-here');
+    const response = await request(app).get('/user').set('Authorization', 'Bearer invalid-token-here');
 
     // Should return 401 Unauthorized
     expect(response.status).toBe(401);
