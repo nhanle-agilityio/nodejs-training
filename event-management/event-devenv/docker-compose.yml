@@ -1,0 +1,27 @@
+services:
+  em-api:
+    build:
+      context: ..
+      dockerfile: event-devenv/docker/em/Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .secret/.env
+    volumes:
+      # SQLite database
+      - db-data:/app/database
+      # Source code
+      - ../src:/app/src
+      # Isolate node_modules
+      - node_modules:/app/node_modules
+    networks:
+      - em-network
+
+volumes:
+  db-data:
+  node_modules:
+
+networks:
+  em-network:

@@ -1,0 +1,23 @@
+services:
+  react-demo:
+    build:
+      context: ..
+      dockerfile: demo-devenv/docker/react-demo/Dockerfile
+    ports:
+      - "${PORT:-5173}:5173"
+    # environment:
+    env_file:
+      - .secret/.env
+    volumes:
+      # Source code
+      - ../src:/app/src
+      - ../public:/app/public
+      - ../index.html:/app/index.html
+      - ../vite.config.js:/app/vite.config.js
+      - ../tailwind.config.js:/app/tailwind.config.js
+      - ../postcss.config.js:/app/postcss.config.js
+      # Isolate node_modules
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:

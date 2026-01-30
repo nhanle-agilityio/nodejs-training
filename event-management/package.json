@@ -8,7 +8,7 @@
   "main": "app.js",
   "scripts": {
     "start": "node --env-file=.env src/server.js",
-    "dev": "nodemon --env-file=.env src/server.js",
+    "dev": "nodemon src/server.js",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "migration:run": "typeorm migration:run -d src/config/data-source.js",
     "migration:revert": "typeorm migration:revert -d src/config/data-source.js",
