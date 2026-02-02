@@ -9,8 +9,8 @@ COPY package*.json ./
 # Install all dependencies (including dev)
 RUN npm ci
 
-# Copy source code
-# COPY . .
+# Copy Jest configuration files (needed for running tests)
+COPY jest.config.js jest.setup.js ./
 
 # Expose port
 EXPOSE 3000

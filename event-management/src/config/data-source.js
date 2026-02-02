@@ -5,9 +5,10 @@ import { RefreshToken } from '../entities/RefreshToken.js';
 import { UserSubscriber } from '../subscribers/userSubscriber.js';
 
 import { DataSource } from 'typeorm';
+
 export const AppDataSource = new DataSource({
   type: 'sqlite',
-  database: 'database/database.sqlite',
+  database: process.env.DATABASE_PATH,
   synchronize: false,
   logging: false,
   entities: [Event, User, RefreshToken],
