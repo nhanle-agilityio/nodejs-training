@@ -45,24 +45,43 @@ Ba loại view có thể định nghĩa khi thiết kế cấu trúc logic: **da
 
 Dùng để xem và thao tác dữ liệu từ một base table hoặc nhiều base tables.
 
-**Single-Table:** Thường dùng các trường chọn từ base table. Sửa đổi truyền qua view vào base table. Đặc tả trường và quy tắc nghiệp vụ xác định loại sửa đổi cho phép.
+**Single-Table:** Thường dùng các trường chọn từ base table. Ví dụ, để cung cấp danh sách tên và số điện thoại nhân viên cho toàn tổ chức, bạn xây view EMPLOYEE PHONE LIST từ bảng EMPLOYEES với các trường EMPLOYEE ID, EMPFIRST NAME, EMPLAST NAME, EMPPHONE NUMBER. Hình 12.1 và 12.2 minh họa. RDBMS xây lại và điền lại view mỗi truy cập; hiển thị thay đổi mới nhất. Sửa đổi truyền qua view vào base table; đặc tả trường và quy tắc nghiệp vụ xác định loại sửa đổi cho phép.
 
-**Multitable:** Yêu cầu duy nhất—các bảng phải có mối quan hệ với nhau. Ví dụ: CLASS ROSTER từ CLASSES + STUDENTS qua STUDENT CLASSES. "Dư thừa" hiển thị (tên lớp lặp theo sinh viên) chấp nhận được vì dữ liệu rút từ base tables, không lưu vật lý. **Data view không chứa khóa chính riêng** vì không phải bảng; có thể đưa PK từ base table nếu đóng góp thông tin.
+*[Hình 12.1 View EMPLOYEE PHONE LIST.]*
+*[Hình 12.2 Thông tin từ view EMPLOYEE PHONE LIST.]*
+
+**Multitable:** Yêu cầu duy nhất—các bảng phải có mối quan hệ với nhau. Ví dụ: view CLASS ROSTER hiển thị tên mỗi lớp và tên sinh viên đăng ký; dùng CLASSES, STUDENTS qua STUDENT CLASSES. Hình 12.3–12.5 minh họa. Tên sinh viên phù hợp xuất hiện cho mỗi lớp vì CLASSES và STUDENTS liên quan qua STUDENT CLASSES. "Dư thừa" hiển thị (tên lớp lặp theo sinh viên) chấp nhận được—dữ liệu rút từ base tables, không lưu vật lý. **Data view không chứa khóa chính riêng** vì không phải bảng; có thể đưa PK từ base table nếu đóng góp thông tin.
+
+*[Hình 12.3 Base tables cho view CLASS ROSTER.]*
+*[Hình 12.4 Sơ đồ view CLASS ROSTER.]*
+*[Hình 12.5 Mẫu dữ liệu từ view CLASS ROSTER.]*
 
 ### Aggregate View
 
-Dùng để hiển thị thông tin do **tổng hợp** một tập dữ liệu theo cách cụ thể. Có thể dùng một hoặc nhiều base tables; bao gồm calculated fields với hàm tổng hợp (Sum, Average, Min, Max, Count) và data fields để nhóm dữ liệu tổng hợp.
+Dùng để hiển thị thông tin do **tổng hợp** một tập dữ liệu theo cách cụ thể. Có thể dùng một hoặc nhiều base tables; bao gồm calculated fields với hàm tổng hợp (Sum, Average, Min, Max, Count) và data fields để nhóm dữ liệu. Sum, Average, Min, Max, Count là các hàm tổng hợp phổ biến nhất; mọi RDBMS chính hỗ trợ.
+
+**Ví dụ:** Muốn biết số sinh viên đăng ký mỗi lớp. Thay vì dùng data view rồi đếm thủ công từng lớp (tẻ nhạt), dùng aggregate view: loại trường STUDENT ID, thêm calculated field TOTAL STUDENTS REGISTERED với hàm Count—đếm số STUDENT ID trong STUDENT CLASSES liên kết với mỗi CLASS ID. Hình 12.6–12.9 minh họa.
+
+*[Hình 12.6 Sơ đồ view CLASS REGISTRATION.]*
+*[Hình 12.7 Mẫu dữ liệu từ view ban đầu.]*
+*[Hình 12.8 Sơ đồ đã sửa cho CLASS REGISTRATION.]*
+*[Hình 12.9 Mẫu dữ liệu từ view đã sửa.]*
 
 **Đặc điểm:**
 1. Trường calculated hiển thị một số cho mỗi nhóm
-2. Tất cả data fields là **grouping fields**—giá trị không thể sửa
+2. Dư thừa trong trường nhóm (vd: CLASS NAME) được loại bỏ—mọi thể hiện cùng tên gộp thành một; tất cả data fields là **grouping fields** (giá trị không thể sửa)
 3. View gồm hoàn toàn grouping + calculated fields → **không thể sửa bất kỳ dữ liệu nào**
 
 Aggregate view hữu ích làm cơ sở báo cáo hoặc cung cấp thông tin thống kê.
 
 ### Validation View
 
-Tương tự validation table—giúp thi hành tính toàn vẹn dữ liệu. Khi quy tắc giới hạn phạm vi giá trị của trường, có thể thi hành ràng buộc bằng validation view hoặc validation table. Khác biệt: validation table lưu dữ liệu riêng; validation view rút từ base tables. Thường định nghĩa với một base table, hai hoặc ba trường. Có thể hạn chế trường người dùng truy cập trong khi vẫn cung cấp phạm vi hợp lệ cho FK.
+Tương tự validation table—giúp thi hành tính toàn vẹn dữ liệu. Khi quy tắc giới hạn phạm vi giá trị của trường, có thể thi hành ràng buộc bằng validation view hoặc validation table. Khác biệt: validation table lưu dữ liệu riêng; validation view rút từ base tables. Thường định nghĩa với một base table, hai hoặc ba trường (cấu trúc tương tự validation table).
+
+**Ví dụ:** Thiết kế cơ sở dữ liệu cho nhà thầu nhỏ. SUBCONTRACTOR ID trong PROJECT SUBCONTRACTORS lấy phạm vi giá trị từ SUBCONTRACTORS. Bạn muốn giới hạn truy cập—người dùng chỉ xem SUBCONTRACTOR ID, SCNAME, SCPHONE NUMBER, SCEMAIL. Định nghĩa validation view APPROVED SUBCONTRACTORS với các trường đó; view vẫn cung cấp phạm vi hợp lệ cho SUBCONTRACTOR ID trong PROJECT SUBCONTRACTORS và thi hành đặc điểm mối quan hệ của SUBCONTRACTORS. Hình 12.10 và 12.11 minh họa.
+
+*[Hình 12.10 Các bảng từ cơ sở dữ liệu nhà thầu nhỏ.]*
+*[Hình 12.11 Sơ đồ đã sửa; lưu ý view APPROVED SUBCONTRACTORS.]*
 
 ---
 
@@ -70,7 +89,7 @@ Tương tự validation table—giúp thi hành tính toàn vẹn dữ liệu. K
 
 Views là tài sản quan trọng. Trong giai đoạn này bạn định nghĩa tập view cơ bản; sẽ định nghĩa thêm khi triển khai RDBMS và tạo ứng dụng. View trong thiết kế tập trung vào truy cập dữ liệu và rút thông tin.
 
-**Làm việc với người dùng và quản lý:** Xác định loại view tổ chức cần; thiết lập và ghi tài liệu; rà soát.
+**Làm việc với người dùng và quản lý:** Làm việc lại với nhóm đại diện để xác định loại view tổ chức cần. Sau khi xác định, thiết lập và ghi tài liệu, rồi cùng nhóm rà soát để đảm bảo view định nghĩa đúng. Trước cuộc họp đầu tiên, rà soát ghi chú từ toàn bộ quy trình thiết kế—mục tiêu là có ý tưởng loại view tổ chức có thể cần. Hầu hết tổ chức dành nhiều thời gian tạo và đọc báo cáo—tập trung vào khía cạnh đó. Rà soát mẫu báo cáo thu thập trong giai đoạn phân tích.
 
 **Điểm xác định yêu cầu view:**
 1. Rà soát ghi chú với nhóm (vd: mục tiêu sứ mệnh gợi ý view)
@@ -80,6 +99,13 @@ Views là tài sản quan trọng. Trong giai đoạn này bạn định nghĩa 
 5. Nghiên cứu quy tắc nghiệp vụ (validation view)
 
 **Định nghĩa view:** Xem sơ đồ mối quan hệ; chọn bảng và trường; định nghĩa và ghi vào view diagram.
+
+**Ví dụ CUSTOMER CALL LIST:** Báo cáo cần view hiển thị thông tin khách hàng và đơn hàng, đặc biệt ngày mua cuối. Rà soát sơ đồ CUSTOMERS và ORDERS; chọn CUSTFIRST NAME, CUSTLAST NAME, CUSTPHONE NUMBER, CUSTCITY từ CUSTOMERS và ORDER DATE từ ORDERS. Thêm calculated field LAST PURCHASE DATE với biểu thức `Max(Order Date)` để lấy ngày mua cuối mỗi khách; có thể thêm CUSTOMER NAME nối `CustLast Name & ", " & CustFirst Name`. Hình 12.12–12.15 minh họa.
+
+*[Hình 12.12 Mẫu báo cáo yêu cầu view.]*
+*[Hình 12.13 Sơ đồ mối quan hệ CUSTOMERS và ORDERS.]*
+*[Hình 12.14 Sơ đồ view CUSTOMER CALL LIST.]*
+*[Hình 12.15 Sơ đồ đã sửa cho CUSTOMER CALL LIST.]*
 
 ---
 
@@ -97,7 +123,7 @@ Bảng không chứa calculated fields nhưng view có thể—đây là đặc 
 
 View có thể áp dụng **criterion** (tiêu chí) lên một hoặc nhiều trường để lọc bản ghi hiển thị. *Criterion* = biểu thức kiểm tra giá trị trường. View chỉ bao gồm bản ghi nếu giá trị thỏa tiêu chí.
 
-Ví dụ: `CustState = "WA"` — chỉ khách Washington. `CustCity In ("Bellevue", "Olympia", ...)` — thành phố cụ thể. Dùng số tiêu chí tối thiểu cần thiết. **Trường được kiểm tra phải có trong cấu trúc view.** Không thể chỉ tiêu chí trên view diagram—ghi trên View Specifications sheet.
+Ví dụ: `CustState = "WA"` — chỉ khách Washington. Để lọc thêm theo thành phố: `CustCity In ("Bellevue", "Olympia", "Redmond", "Seattle", "Spokane", "Tacoma")`. Cả hai tiêu chí có thể cần—nhiều thành phố trùng tên ở các bang khác nhau (vd: Portland, Oregon và Portland, Maine). Dùng số tiêu chí tối thiểu để lấy đúng bản ghi. **Trường được kiểm tra phải có trong cấu trúc view.** Không thể chỉ tiêu chí trên view diagram—ghi trên View Specifications sheet.
 
 ---
 
@@ -156,3 +182,22 @@ View là bảng ảo không chứa hay lưu dữ liệu. Hữu ích vì: làm vi
 14. Khi nào dùng calculated fields?
 15. Làm sao định nghĩa view chỉ sách khoa học viễn tưởng?
 16. Tại sao phải hoàn thành View Specifications cho mỗi view?
+
+### Đáp án
+
+1. View không lưu trữ dữ liệu—nó rút từ base tables; chỉ cấu trúc được lưu.
+2. Bất kỳ hai trong số: làm việc với dữ liệu từ nhiều bảng; phản ánh thông tin mới nhất; tùy chỉnh; thi hành tính toàn vẹn; bảo mật.
+3. **Data**, **aggregate** và **validation**.
+4. RDBMS **xây lại và điền lại** view mỗi lần truy cập.
+5. **Đặc tả trường** và **quy tắc nghiệp vụ** của các trường/base tables.
+6. Các bảng phải có **mối quan hệ** với nhau.
+7. View không phải bảng—không lưu dữ liệu nên không cần PK riêng.
+8. Hiển thị thông tin **tổng hợp** (Sum, Average, Count, Min, Max); cơ sở cho báo cáo.
+9. **Sum**, **Average**, **Min**, **Max**, **Count**.
+10. Trường dùng để nhóm dữ liệu trong aggregate view—giá trị không thể sửa.
+11. **Sai.** Không thể sửa dữ liệu trong aggregate view.
+12. Validation table lưu dữ liệu riêng; validation view rút từ base tables.
+13. Bất kỳ hai trong số: rà soát ghi chú với nhóm; rà soát mẫu báo cáo; xem bảng và chủ đề; phân tích mối quan hệ; nghiên cứu quy tắc nghiệp vụ.
+14. Khi cung cấp thông tin phù hợp, có ý nghĩa hoặc nâng cao cách view sử dụng dữ liệu.
+15. Thêm filter/criterion trên trường danh mục (vd: Category = "Science Fiction")—trường phải có trong cấu trúc view.
+16. Ghi đặc điểm view (tên, loại, base tables, biểu thức calculated fields, filters) để triển khai đúng trong RDBMS.

@@ -11,6 +11,12 @@
 
 ---
 
+## Chương kết
+
+Chương này là chương kết thúc của sách—phần kết có tính suy ngẫm, khẳng định những gì bạn đã đạt được và khuyến khích học tập tiếp tục. Không có nội dung kỹ thuật mới; chương củng cố giá trị của phương pháp thiết kế và đưa lời khuyên chia tay cho hành trình phía trước.
+
+---
+
 Tôi luôn tin rằng bạn không cần phải là nhà khoa học tên lửa để thiết kế cơ sở dữ liệu đúng cách. Đó là tác vụ tương đối thẳng mà bất kỳ ai có óc phán đoán tốt đều có thể thực hiện. Chỉ cần theo một phương pháp thiết kế cơ sở dữ liệu tốt, bạn sẽ thiết kế được cấu trúc cơ sở dữ liệu vững chắc và đáng tin cậy.
 
 Bạn giờ có kiến thức và kỹ năng cần thiết để thiết kế cơ sở dữ liệu quan hệ. Bạn biết cách định nghĩa các cấu trúc cần thiết, thiết lập mối quan hệ bảng và triển khai các mức tính toàn vẹn dữ liệu. Nếu gặp cấu trúc thiết kế sai hoặc kém, bạn biết cách cải thiện chúng.

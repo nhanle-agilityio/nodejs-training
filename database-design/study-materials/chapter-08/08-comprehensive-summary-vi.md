@@ -148,6 +148,24 @@ Tiến hành phỏng vấn người dùng và quản lý để rà soát:
 14. Bạn đảm bảo điều gì khi thiết lập tính toàn vẹn cấp bảng?
 15. Tại sao nên rà soát cấu trúc bảng ban đầu?
 
+### Đáp án
+
+1. (1) Xác định mỗi bản ghi; (2) Thiết lập và thực thi tính toàn vẹn; (3) Thiết lập mối quan hệ bảng.
+2. Candidate, primary, foreign, non-key.
+3. Định danh duy nhất mỗi bản ghi.
+4. Không đa phần; giá trị duy nhất; không Null; không vi phạm bảo mật.
+5. Đúng.
+6. Có.
+7. Trường tạo khi không có candidate key tự nhiên.
+8. Primary key.
+9. Xác định duy nhất mỗi bản ghi.
+10. Chọn từ candidates; đánh dấu PK.
+11. Giống Elements of Candidate Key.
+12. Kiểm tra PK xác định độc quyền mỗi trường.
+13. Candidate key không được chọn làm PK.
+14. Mỗi bản ghi duy nhất; không trùng.
+15. Xác minh cấu trúc trước khi thiết lập mối quan hệ.
+
 ---
 
 ## Kết quả học tập

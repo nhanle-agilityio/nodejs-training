@@ -145,6 +145,25 @@ Use expressions you're familiar with; modify when implementing in RDBMS.
 15. How do you define a view for only science-fiction books?
 16. Why must you complete a View Specifications sheet for every view?
 
+### Answers
+
+1. It does not store data—draws from base tables.
+2. Work with multitable data; reflect current info; customize; security.
+3. Data, aggregate, validation.
+4. Rebuilds and repopulates the view.
+5. Field specifications and business rules.
+6. Tables must bear a relationship.
+7. A view is not a table—it stores no data.
+8. Display aggregated info; basis for reports.
+9. Sum, Average, Min, Max, Count.
+10. Field used to group data—values cannot be modified.
+11. **False.**
+12. Validation table stores data; validation view draws from base tables.
+13. Review notes; review report samples; analyze relationships.
+14. When they provide pertinent information or enhance display.
+15. Add filter on category field (e.g., Category = "Science Fiction").
+16. Document view characteristics for proper RDBMS implementation.
+
 ---
 
 *Proceed to Chapter 13: Reviewing Data Integrity*

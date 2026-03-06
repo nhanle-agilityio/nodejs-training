@@ -194,6 +194,27 @@ Refine foreign keys; set deletion rules, participation type, degree. Verify with
 17. What does degree of participation indicate?
 18. When does a relationship attain relationship-level integrity?
 
+### Answers
+
+1. Establishes connection; minimizes redundancy; enables multitable data retrieval; ensures relationship-level integrity.
+2. One-to-one, one-to-many, many-to-many.
+3. Many-to-many.
+4. Redundant/duplicate data; difficult insert/update/delete.
+5. Relationship between records within the same table.
+6. Create table matrix.
+7. Associative and contextual.
+8. 1:N.
+9. Formula: 1:1+1:1=1:1; 1:N+1:1=1:N; 1:N+1:N=M:N.
+10. Copy PK from "one" side into "many" side as FK.
+11. **True.**
+12. Create linking table with fields from same parent table.
+13. Comply with Elements of a Foreign Key.
+14. General and Logical.
+15. What RDBMS does with child records when parent is deleted.
+16. Mandatory and Optional.
+17. Min/max number of related records.
+18. When properly established and characteristics appropriately set.
+
 ---
 
 *Proceed to Chapter 11: Business Rules*

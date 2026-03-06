@@ -148,6 +148,24 @@ Conduct interviews with users and management to review:
 14. What do you ensure by establishing table-level integrity?
 15. Why should you review the initial table structures?
 
+### Answers
+
+1. (1) Ensure each record is precisely identified; (2) Establish and enforce integrity; (3) Establish table relationships.
+2. Candidate, primary, foreign, non-key.
+3. Uniquely identify each record in the table.
+4. Any four of: not multipart; unique values; no Nulls; no security/privacy breach; value not optional; minimum number of fields; uniquely identifies each record; exclusively identifies each field; modified only in rare cases.
+5. **True.**
+6. **Yes.**
+7. A field (or set) you create when no natural candidate key exists—conforms to all Elements.
+8. Primary key.
+9. Uniquely identifies each record; main component of table-level integrity.
+10. Select from candidate keys; modify field specs if needed; mark in diagram.
+11. Same as Elements of Candidate Key.
+12. Test that PK exclusively identifies each field value; remove fields it doesn't identify.
+13. A candidate key not selected as primary key.
+14. Each record uniquely identified; no duplicate records; each PK conforms to Elements.
+15. Verify structure before establishing relationships.
+
 ---
 
 ## Learning Outcomes Alignment

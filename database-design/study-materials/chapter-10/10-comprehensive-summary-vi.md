@@ -194,6 +194,27 @@ Tinh chỉnh khóa ngoại; thiết lập quy tắc xóa, loại tham gia, mức
 17. Mức độ tham gia cho biết gì?
 18. Khi nào mối quan hệ đạt tính toàn vẹn cấp mối quan hệ?
 
+### Đáp án
+
+1. Kết nối bảng; tối thiểu dư thừa; rút dữ liệu đa bảng; tính toàn vẹn cấp mối quan hệ.
+2. Một-một, một-nhiều, nhiều-nhiều.
+3. Nhiều-nhiều.
+4. Dữ liệu dư thừa/trùng; chèn/cập nhật/xóa khó.
+5. Mối quan hệ giữa bản ghi trong cùng bảng.
+6. Ma trận bảng.
+7. Liên kết và ngữ cảnh.
+8. 1:N.
+9. Công thức: 1:1+1:1=1:1; 1:N+1:1=1:N; 1:N+1:N=M:N.
+10. Sao chép PK từ "một" vào "nhiều" làm FK.
+11. Đúng.
+12. Bảng liên kết với trường từ cùng bảng.
+13. Tuân thủ Elements of a Foreign Key.
+14. General và Logical.
+15. Hành động RDBMS khi xóa bản ghi cha.
+16. Mandatory và Optional.
+17. Số min/max bản ghi liên quan.
+18. Khi thiết lập đúng và đặc điểm phù hợp.
+
 ---
 
 *Tiếp tục Chương 11: Quy tắc nghiệp vụ*

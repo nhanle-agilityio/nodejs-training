@@ -159,6 +159,22 @@ Rà soát từng tờ; đảm bảo quy tắc thiết lập đúng và mọi vù
 12. Mối liên hệ giữa quy tắc và bảng xác thực?
 13. Tại sao nên rà soát tất cả Tờ Đặc tả đã hoàn thành?
 
+### Đáp án
+
+1. Phát biểu áp đặt ràng buộc lên trường hoặc mối quan hệ.
+2. Hướng cơ sở dữ liệu và hướng ứng dụng.
+3. Không.
+4. Trường cụ thể và mối quan hệ cụ thể.
+5. Ràng buộc thành tố đặc tả trường.
+6. Khi chèn/xóa/cập nhật.
+7. Tờ Đặc tả Quy tắc nghiệp vụ.
+8. Ghi mọi quy tắc; định dạng chuẩn; dễ xử lý sự cố.
+9. Ghi sửa đổi; quan trọng cho xử lý sự cố.
+10. Lưu giá trị hợp lệ; thi hành ràng buộc phạm vi.
+11. Hai trường: PK và trường giá trị.
+12. Dùng bảng xác thực khi quy tắc giới hạn phạm vi giá trị.
+13. Đảm bảo thiết lập đúng và đánh dấu đủ.
+
 ---
 
 *Tiếp tục Chương 12: Views*

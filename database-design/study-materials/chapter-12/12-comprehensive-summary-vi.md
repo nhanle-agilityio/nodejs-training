@@ -112,6 +112,25 @@ View định nghĩa đúng? Calculated fields phù hợp? Filters lấy đúng b
 15. Làm sao định nghĩa view chỉ sách khoa học viễn tưởng?
 16. Tại sao phải hoàn thành View Specifications cho mỗi view?
 
+### Đáp án
+
+1. View không lưu dữ liệu—rút từ base tables.
+2. Làm việc đa bảng; phản ánh thông tin mới nhất; tùy chỉnh; bảo mật.
+3. Data, aggregate, validation.
+4. Xây lại và điền lại view.
+5. Đặc tả trường và quy tắc nghiệp vụ.
+6. Các bảng phải có mối quan hệ.
+7. View không phải bảng—không lưu dữ liệu.
+8. Hiển thị thông tin tổng hợp; cơ sở báo cáo.
+9. Sum, Average, Min, Max, Count.
+10. Trường nhóm—giá trị không thể sửa.
+11. Sai.
+12. Validation table lưu dữ liệu; validation view rút từ base tables.
+13. Rà soát ghi chú; rà soát mẫu báo cáo; phân tích mối quan hệ.
+14. Khi cung cấp thông tin phù hợp hoặc nâng cao hiển thị.
+15. Thêm filter trên trường danh mục (Category = "Science Fiction").
+16. Ghi đặc điểm view để triển khai đúng trong RDBMS.
+
 ---
 
 *Tiếp tục Chương 13: Rà soát Tính toàn vẹn Dữ liệu*

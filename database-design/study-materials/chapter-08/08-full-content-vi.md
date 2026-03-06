@@ -353,6 +353,24 @@ Chương kết thúc với hướng dẫn về tiến hành phỏng vấn thêm 
 14. Bạn đảm bảo gì khi thiết lập table-level integrity?
 15. Tại sao bạn nên rà soát cấu trúc bảng ban đầu?
 
+### Đáp án
+
+1. (1) Đảm bảo mỗi bản ghi được xác định chính xác; (2) Thiết lập và thực thi tính toàn vẹn; (3) Thiết lập mối quan hệ bảng.
+2. **Candidate key**, **primary key**, **foreign key** và **non-key**.
+3. Định danh duy nhất mỗi bản ghi trong bảng.
+4. Bất kỳ bốn trong số: không phải trường đa phần; chứa giá trị duy nhất; không chứa Null; không vi phạm bảo mật/quyền riêng tư; giá trị không tùy chọn; gồm số trường tối thiểu; xác định duy nhất và độc quyền mỗi bản ghi; xác định độc quyền giá trị mỗi trường; chỉ sửa trong trường hợp hiếm hoặc cực đoan.
+5. **Đúng.** Candidate key có thể gồm nhiều trường (khóa tổ hợp).
+6. **Có.** Một bảng có thể có nhiều candidate key.
+7. Trường (hoặc tập trường) bạn tạo khi bảng không có candidate key tự nhiên—tuân thủ tất cả Elements of Candidate Key.
+8. **Primary key**.
+9. Nó xác định duy nhất mỗi bản ghi và là thành phần chính của table-level integrity.
+10. Chọn từ candidate keys; chỉnh sửa đặc tả trường nếu cần; đánh dấu trong sơ đồ.
+11. Giống Elements of Candidate Key—không đa phần, giá trị duy nhất, không Null, v.v.
+12. Kiểm tra rằng primary key **xác định độc quyền giá trị mỗi trường**; loại bỏ trường nó không xác định.
+13. Candidate key không được chọn làm primary key.
+14. Mỗi bản ghi được xác định duy nhất; không có bản ghi trùng; mỗi khóa chính tuân thủ Elements.
+15. Để xác minh cấu trúc đúng và phát hiện vấn đề trước khi thiết lập mối quan hệ.
+
 ---
 
 Kết thúc nội dung Chương 8

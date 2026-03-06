@@ -318,6 +318,26 @@ Tiếp theo chúng ta thảo luận mission objectives, và mở rộng tổng q
 16. Nêu hai cách mission objective có thể được rút ra từ phản hồi.
 17. Khi nào mission objective hoàn thành?
 
+### Đáp án
+
+1. Cung cấp kênh giao tiếp giữa bạn và các bên liên quan, giúp đảm bảo thành công thiết kế, và cung cấp thông tin quan trọng ảnh hưởng cấu trúc cơ sở dữ liệu.
+2. Mức độ e ngại của một số người tham gia tăng tỷ lệ thuận với số người tham gia.
+3. Mỗi nhóm có góc nhìn khác về tổ chức và cách sử dụng dữ liệu hàng ngày.
+4. **Sai.** Bạn thường dùng câu hỏi **mở**.
+5. **Phản hồi đầy đủ, mô tả**.
+6. **Luôn duy trì kiểm soát** cuộc phỏng vấn.
+7. Mission statement **tuyên bố mục đích cụ thể** của cơ sở dữ liệu một cách chung chung.
+8. Bất kỳ hai trong số: không mơ hồ; súc tích và đi vào trọng tâm; không chứa cụm từ mô tả rõ nhiệm vụ cụ thể.
+9. **Sai.** Bạn **phải** tìm hiểu về tổ chức.
+10. Khi bạn có câu mô tả mục đích cụ thể và **được mọi người liên quan hiểu và đồng ý**.
+11. Phát biểu đại diện **một nhiệm vụ chung duy nhất** được dữ liệu duy trì trong cơ sở dữ liệu hỗ trợ.
+12. Bất kỳ hai trong số: câu tuyên bố; định nghĩa rõ nhiệm vụ chung; không chi tiết không cần thiết; diễn đạt chung chung; súc tích; không mơ hồ.
+13. **Đúng.**
+14. Nhiều nhiệm vụ họ thực hiện **sẽ trở thành mission objectives**.
+15. **Sai.** Mỗi objective đại diện **một** nhiệm vụ.
+16. **Tường minh** (được nêu trong phản hồi) hoặc **hàm ý** (suy ra).
+17. Khi nó vừa **định nghĩa đúng** vừa **định nghĩa tốt**, và có ý nghĩa với bạn và những người bạn thiết kế cho.
+
 ---
 
 *Kết thúc nội dung Chương 5*

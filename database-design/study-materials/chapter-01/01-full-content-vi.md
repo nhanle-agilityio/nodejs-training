@@ -143,3 +143,17 @@ Chương tiếp theo trình bày tại sao bạn nên quan tâm thiết kế cơ
 10. Đúng hay Sai: Thiết bị di động bị giới hạn dung lượng lưu trữ tính bằng gigabyte.
 
 11. Nêu lý do tại sao các công ty phần mềm cơ sở dữ liệu gặp khó khi triển khai cơ sở dữ liệu quan hệ.
+
+### Đáp án
+
+1. **Cơ sở dữ liệu vận hành** và **cơ sở dữ liệu phân tích**.
+2. **Dữ liệu tĩnh**.
+3. **Đúng.** Cơ sở dữ liệu nghiệp vụ được sử dụng chủ yếu trong các kịch bản OLTP.
+4. **Lý thuyết tập hợp** và **logic vị từ bậc nhất**.
+5. Cơ sở dữ liệu quan hệ lưu dữ liệu trong **quan hệ**, mà người dùng nhận thức là **bảng**.
+6. **Một-một**, **một-nhiều** và **nhiều-nhiều**.
+7. Bằng cách sử dụng **SQL** (Ngôn ngữ truy vấn có cấu trúc).
+8. Bất kỳ hai trong số: tính toàn vẹn đa cấp tích hợp; độc lập logic và vật lý với ứng dụng; đảm bảo tính nhất quán và chính xác; truy xuất dữ liệu dễ dàng.
+9. **RDBMS** là chương trình phần mềm dùng để tạo, duy trì, sửa đổi và thao tác cơ sở dữ liệu quan hệ.
+10. **Sai.** Thiết bị di động có thể có dung lượng gigabyte hoặc terabyte.
+11. Tốc độ xử lý, bộ nhớ và lưu trữ **không đủ** để cung cấp nền tảng cho các nhà cung cấp phần mềm xây dựng triển khai đầy đủ cơ sở dữ liệu quan hệ.

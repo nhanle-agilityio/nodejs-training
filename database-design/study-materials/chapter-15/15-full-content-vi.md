@@ -13,7 +13,12 @@
 
 ## Các chủ đề trong chương này
 
+- Tuân thủ Quy tắc là Quan trọng nhất
 - Khi nào Có thể Uốn cong hoặc Phá vỡ Quy tắc?
+  - Thiết kế Cơ sở Dữ liệu Phân tích
+  - Cải thiện Hiệu năng Xử lý
+- Có đáng không? (Tính toàn vẹn vs Hiệu năng)
+- Cải thiện bằng cách khác trước
 - Ghi tài liệu Hành động của Bạn
 - Tóm tắt
 
@@ -49,7 +54,14 @@ Loại cơ sở dữ liệu này **vi phạm** thiết kế đúng vì bảng ch
 
 **Vấn đề:** Dữ liệu không nhất quán (đồng bộ trường trùng); dữ liệu dư thừa (sửa mỗi instance); tính toàn vẹn suy giảm (bù đắp thủ công); thông tin không chính xác.
 
-**Cải thiện bằng cách khác trước:** Thử phần cứng (CPU, memory, SSD, mạng); tối ưu OS; rà soát cấu trúc (thiết kế kém góp phần hiệu năng kém); rà soát triển khai RDBMS; rà soát ứng dụng (thiết kế truy vấn/báo cáo). **Phá quy tắc chỉ là biện pháp cuối cùng.**
+**Cải thiện bằng cách khác trước:** Làm mọi việc có thể trước khi phá quy tắc. Cân nhắc theo thứ tự:
+- **Phần cứng:** CPU nhanh hơn, nhiều bộ nhớ hơn, SSD, mạng nâng cấp
+- **Hệ điều hành:** Tối ưu hiệu năng; tùy chọn cấu hình
+- **Cấu trúc cơ sở dữ liệu:** Đảm bảo thiết kế đúng; thiết kế kém góp phần hiệu năng kém
+- **Triển khai cơ sở dữ liệu:** Tận dụng đầy đủ RDBMS; định nghĩa hiệu quả
+- **Chương trình ứng dụng:** Viết đúng chưa? Sử dụng tối ưu công cụ RDBMS? Truy vấn và báo cáo thiết kế hiệu quả?
+
+**Phá quy tắc chỉ là biện pháp cuối cùng.** Thiết kế đúng trước; chỉ nới lỏng quy tắc vì lý do rất cụ thể.
 
 ---
 

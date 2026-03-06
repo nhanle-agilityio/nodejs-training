@@ -170,6 +170,22 @@ When a rule limits a field's **range of values** (and the set is fixed, possibly
 12. What is the association between a business rule and a validation table?
 13. Why should you review completed Business Rule Specifications sheets?
 
+### Answers
+
+1. Statement imposing constraint on field or relationship based on org's data use.
+2. Database-oriented and application-oriented.
+3. **No.**
+4. Field-specific and relationship-specific.
+5. Constrains field specification elements.
+6. On insert, delete, or update.
+7. Business Rule Specifications sheet.
+8. Documents all rules; standard format; easier troubleshooting.
+9. Record modifications—critical for troubleshooting.
+10. Store valid values; enforce range-of-values constraint.
+11. Two fields: primary key and value field.
+12. Use validation table when rule limits field's range of values.
+13. Ensure rules properly established and all areas marked.
+
 ---
 
 *Proceed to Chapter 12: Views*

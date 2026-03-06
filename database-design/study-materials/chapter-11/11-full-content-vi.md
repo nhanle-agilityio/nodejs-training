@@ -65,12 +65,21 @@ Hai loại chính: **hướng cơ sở dữ liệu** và **hướng ứng dụng
 
 Ràng buộc **các thành tố của đặc tả trường** cho một trường cụ thể. Số thành tố bị ảnh hưởng tùy cách bạn định nghĩa quy tắc.
 
-- *Ngày đơn hàng không thể trước 16/5/2018* → Range of Values (ORDER DATE)
-- *Phải lưu mã bưu điện cho khách hàng Canada* → Data Type, Length, Character Support (CUSTZIPCODE)
+**Ví dụ ảnh hưởng một thành tố:** *Ngày đơn hàng không thể trước 16/5/2018—ngày doanh nghiệp được thành lập.* Quy tắc này ảnh hưởng phạm vi ngày có thể nhập vào trường ORDER DATE trong bảng ORDERS. Bạn thiết lập bằng cách sửa thành tố Range of Values của đặc tả trường cho ORDER DATE.
+
+**Ví dụ ảnh hưởng nhiều thành tố:** *Chúng ta phải lưu được mã bưu điện cho khách hàng Canada.* Quy tắc này ảnh hưởng Data Type, Length và Character Support của đặc tả trường cho CUSTZIPCODE trong bảng CUSTOMERS. Mã bưu điện mở rộng chứa dấu gạch ngang, mã Canada chứa chữ cái—nên sửa: (1) Data Type = "Alphanumeric"; (2) Length = 9; (3) Character Support = Letters + Keyboard. Hình 11.3 minh họa.
+
+*[Hình 11.3 Thiết lập quy tắc trường cụ thể cho CUSTZIPCODE.]*
 
 ### Mối quan hệ cụ thể (Relationship-Specific)
 
-Ràng buộc ảnh hưởng **đặc điểm của mối quan hệ**. Ví dụ: *Mỗi lớp phải có tối thiểu 5 sinh viên, tối đa 20* → mức độ tham gia giữa CLASSES và STUDENT CLASSES; sửa sơ đồ thành (5,20). Có thể suy ra loại tham gia của STUDENT CLASSES là Mandatory.
+Ràng buộc ảnh hưởng **đặc điểm của mối quan hệ**. Giả sử bạn làm việc với các bảng và mối quan hệ trong Hình 11.4. Hình 11.5 minh họa.
+
+*[Hình 11.4 Các bảng và mối quan hệ từ cơ sở dữ liệu trường học.]*
+
+**Ví dụ:** *Mỗi lớp phải có tối thiểu 5 sinh viên, không được quá 20.* Quy tắc ảnh hưởng mức độ tham gia giữa CLASSES và STUDENT CLASSES. Bạn thi hành ràng buộc bằng cách sửa sơ đồ mối quan hệ để thể hiện một bản ghi trong CLASSES phải liên quan đến ít nhất 5 nhưng không quá 20 bản ghi trong STUDENT CLASSES. Tùy quan điểm, bạn có thể suy ra loại tham gia của STUDENT CLASSES là Mandatory—chỉ có thể nhập hoặc giữ lớp nếu có ít nhất 5 sinh viên đăng ký.
+
+*[Hình 11.5 Thiết lập quy tắc mối quan hệ cụ thể.]*
 
 ---
 
@@ -78,22 +87,45 @@ Ràng buộc ảnh hưởng **đặc điểm của mối quan hệ**. Ví dụ: 
 
 Bạn định nghĩa và thiết lập quy tắc dựa trên cách tổ chức nhận thức và sử dụng dữ liệu. **Thứ tự:** Định nghĩa và thiết lập quy tắc **trường cụ thể trước**, sau đó **mối quan hệ cụ thể**. Cách này giúp tập trung và tránh nhảy qua lại gây nhầm lẫn.
 
-**Làm việc với người dùng và quản lý:** Lên lịch họp với nhóm đại diện để cùng định nghĩa và thiết lập quy tắc phù hợp. Làm việc theo nhóm giúp đảm bảo ràng buộc có ý nghĩa và không có nhầm lẫn về sự cần thiết.
+**Làm việc với người dùng và quản lý:** Lên lịch họp mới với nhóm đại diện người dùng và quản lý để cùng định nghĩa và thiết lập quy tắc phù hợp. Làm việc theo nhóm giúp đảm bảo ràng buộc có ý nghĩa và không có nhầm lẫn hoặc mơ hồ về sự cần thiết của từng ràng buộc. Nếu có ai nghi ngờ về ràng buộc, thảo luận tác động lên trường hoặc mối quan hệ, ưu và nhược điểm—sau đó quyết định giữ hay bỏ quy tắc dựa trên kết quả thảo luận.
 
 ---
 
 ## Định nghĩa và Thiết lập Quy tắc Trường cụ thể
 
-**Sáu bước:**
+Bạn định nghĩa và thiết lập mỗi quy tắc bằng sáu bước sau. Ví dụ minh họa dùng trường CUSTCOUNTY trong bảng CUSTOMERS.
 
-1. **Chọn bảng** — Bất kỳ bảng nào; nghĩ về chủ đề, cách dùng, mối quan hệ.
-2. **Rà soát mỗi trường** — Xem đặc tả trường; hỏi: *Dựa trên cách bảng được dùng, có cần ràng buộc cho thành tố nào không?*
-3. **Định nghĩa quy tắc cần thiết** — Xác định ràng buộc hàm ý; chuyển thành phát biểu quy tắc.
-4. **Thiết lập** — Sửa các thành tố đặc tả trường phù hợp (Required Value, Null Support, Edit Rule, Range of Values, v.v.).
-5. **Xác định hành động kiểm tra quy tắc** — Ràng buộc được kiểm tra khi insert/delete/update bản ghi hoặc giá trị trường. Hỏi: *Quy tắc sẽ vi phạm khi tôi [hành động]?*
-6. **Ghi trên Tờ Đặc tả Quy tắc nghiệp vụ** — Điền sheet cho mỗi quy tắc.
+**Bước 1: Chọn bảng.** Bảng nào trước không quan trọng vì bạn sẽ áp dụng cho tất cả. Nếu chọn bảng quen thuộc, bạn có thể tập trung học quy trình. Hỏi: *Tổ chức sử dụng thông tin dựa trên hoặc liên quan chủ đề này như thế nào? Bảng này có mối quan hệ nào với chính nó hoặc bảng khác?* Tham khảo danh sách bảng cuối cùng và sơ đồ mối quan hệ khi cần.
 
-**Tờ Đặc tả Quy tắc nghiệp vụ gồm:** Statement, Constraint, Type, Category, Test On, Structures Affected, Field Elements Affected / Relationship Characteristics Affected, Action Taken. Action Taken ghi rõ ngày, người, sửa đổi—quan trọng cho xử lý sự cố.
+**Bước 2: Rà soát mỗi trường.** Xem Field Specifications sheet cho mỗi trường và xác định có cần áp ràng buộc lên thành tố nào không. Hỏi: *Dựa trên cách bảng được dùng, có cần ràng buộc cho bất kỳ thành tố nào trong đặc tả này không?* Nếu "không," chuyển sang trường tiếp theo. Ví dụ với CUSTCOUNTY, nếu người tham gia nói: *"Sếp muốn theo dõi khách hàng theo quận, nên phải ghi quận cho mỗi khách. Chúng ta vừa thêm Pierce và Snohomish vào khu vực bán hàng—ghi tên quận là bắt buộc."* → Trả lời rõ ràng là "có," tiếp tục Bước 3. Hình 11.6 minh họa Logical Elements hiện tại.
+
+*[Hình 11.6 Thiết lập hiện tại cho Logical Elements của CUSTCOUNTY.]*
+
+**Bước 3: Định nghĩa quy tắc cần thiết.** Xác định ràng buộc hàm ý từ phản hồi, chuyển mỗi ràng buộc thành phát biểu quy tắc. Phản hồi trên gợi ý hai ràng buộc: (1) Mỗi khách hàng phải có quận; (2) Phạm vi giá trị giới hạn ở King, Kitsap, Pierce, Snohomish. Ví dụ phát biểu: *Mỗi khách hàng phải được liên kết với một quận.* và *Chỉ các quận King, Kitsap, Pierce và Snohomish có thể nhập vào trường này.*
+
+**Bước 4: Thiết lập quy tắc.** Sửa các thành tố đặc tả trường phù hợp. Quy tắc thứ nhất ảnh hưởng Required Value, Null Support, Edit Rule—đặt lần lượt "Yes," "No Nulls," "Enter Now, Edits Allowed." Quy tắc thứ hai ảnh hưởng Range of Values—sửa thành "King, Kitsap, Pierce, Snohomish." Hình 11.7 minh họa. Kiểm tra cẩn thận mỗi quy tắc để xác định thành tố bị ảnh hưởng; giữ Field Specifications sheet bên cạnh khi mới bắt đầu.
+
+*[Hình 11.7 Thiết lập đã sửa cho Logical Elements của CUSTCOUNTY.]*
+
+**Bước 5: Xác định hành động kiểm tra quy tắc.** Ràng buộc được kiểm tra khi chèn, xóa hoặc cập nhật bản ghi hoặc giá trị trường. Hỏi: *Quy tắc sẽ vi phạm khi tôi nhập bản ghi mới? Khi không nhập? Khi xóa bản ghi? Khi nhập giá trị vào trường? Khi không nhập? Khi cập nhật giá trị? Khi xóa giá trị?* Ghi lại các hành động sẽ kích hoạt vi phạm—dùng trong Bước 6 và khi triển khai RDBMS. Với CUSTCOUNTY: kiểm tra khi nhập giá trị (phải trong phạm vi) và khi xóa giá trị (không được Null).
+
+**Bước 6: Ghi trên Tờ Đặc tả Quy tắc nghiệp vụ.** Điền Business Rule Specifications sheet cho mỗi quy tắc. Hình 11.8 minh họa sheet hoàn thành cho CUSTCOUNTY.
+
+*[Hình 11.8 Ví dụ Tờ Đặc tả Quy tắc nghiệp vụ.]*
+
+### Các mục trên Tờ Đặc tả Quy tắc nghiệp vụ
+
+- **Statement:** Văn bản quy tắc—rõ ràng, súc tích, không gây nhầm lẫn.
+- **Constraint:** Giải thích ngắn về cách ràng buộc áp dụng cho bảng và trường.
+- **Type:** Database oriented hoặc Application oriented.
+- **Category:** Field specific hoặc Relationship specific.
+- **Test On:** Hành động (insert, delete, update) sẽ kiểm tra ràng buộc.
+- **Structures Affected:** Tên trường hoặc bảng bị ảnh hưởng.
+- **Field Elements Affected:** (trường cụ thể) Thành tố đặc tả trường bị ảnh hưởng.
+- **Relationship Characteristics Affected:** (mối quan hệ cụ thể) Đặc điểm mối quan hệ bị ảnh hưởng.
+- **Action Taken:** Sửa đổi đã thực hiện; bắt đầu bằng ngày và tên/initials người thực hiện. Quan trọng cho xử lý sự cố—ghi chính xác các bước đã làm.
+
+**Ba lợi ích của sheet:** (1) Ghi mọi quy tắc hướng cơ sở dữ liệu; (2) Ghi quy tắc hướng ứng dụng (dù không thiết lập trong thiết kế logic, thông tin hữu ích khi triển khai); (3) Định dạng chuẩn—dễ theo dõi, bảo trì và xử lý sự cố.
 
 ---
 
@@ -114,18 +146,21 @@ Bạn định nghĩa và thiết lập quy tắc dựa trên cách tổ chức n
 
 ## Bảng xác thực (Validation Tables)
 
-Khi quy tắc trường cụ thể áp đặt ràng buộc định nghĩa **tập giá trị hợp lệ rõ ràng** cho phạm vi giá trị của trường, và tập này thường cố định, ít thay đổi—bạn có thể lưu các giá trị trong **bảng xác thực** để tránh liệt kê dài trên đặc tả và phức tạp khi triển khai RDBMS.
+**Bảng xác thực (validation table)**—còn gọi là lookup table—là bảng lưu các giá trị dùng để thi hành tính toàn vẹn dữ liệu. Bảng này hiếm khi sửa đổi sau khi đã điền dữ liệu.
 
-**Cấu trúc điển hình:** Hai trường—trường đầu làm khóa chính (dùng thi hành tính toàn vẹn); trường thứ hai là trường không khóa lưu tập giá trị bắt buộc cho trường khác.
+Khi quy tắc trường cụ thể áp đặt ràng buộc định nghĩa **tập giá trị hợp lệ rõ ràng** cho phạm vi giá trị của trường, và tập này thường cố định hoặc có thể khá lớn—bạn có thể lưu các giá trị trong **bảng xác thực** thay vì liệt kê dài trên đặc tả. Cách này giúp triển khai trong RDBMS đơn giản và nhất quán hơn.
+
+**Cấu trúc điển hình:** Hai trường—(1) trường làm khóa chính, dùng thi hành tính toàn vẹn; (2) trường không khóa lưu tập giá trị mà trường khác yêu cầu.
 
 ### Sử dụng Bảng xác thực hỗ trợ Quy tắc nghiệp vụ
 
 1. **Tạo bảng xác thực** với các giá trị hợp lệ.
-2. **Thiết lập mối quan hệ 1:N** giữa bảng cha của trường bị ảnh hưởng và bảng xác thực. Thay trường gốc bằng bản sao khóa chính từ bảng xác thực (FK).
-3. **Sửa Range of Values** — *Bất kỳ giá trị nào trong trường [tên] của bảng [xác thực].*
-4. **Đặt đặc điểm mối quan hệ:** Deletion Rule = Restrict; Type: validation Mandatory, parent Optional; Degree phù hợp.
+2. **Thiết lập mối quan hệ 1:N** giữa bảng cha của trường bị ảnh hưởng và bảng xác thực. Bảng con nhận FK từ khóa chính bảng xác thực.
+3. **Thay trường gốc** bằng FK trỏ đến bảng xác thực (hoặc dùng khóa chính bảng xác thực).
+4. **Sửa Range of Values** — *Bất kỳ giá trị nào trong trường [tên] của bảng [xác thực].*
+5. **Đặt đặc điểm mối quan hệ:** Deletion Rule = Restrict; Type of participation: bảng xác thực Mandatory, bảng cha Optional; Degree phù hợp (vd: (1,1) cho STATES, (0,N) cho SUPPLIERS).
 
-Ví dụ: SUPPLIERS.SUPPSTATE giới hạn 11 bang miền Tây + AK, HI → bảng STATES; SUPPLIERS.STATE (FK) từ STATES.STATE.
+**Ví dụ:** SUPPSTATE giới hạn 11 bang miền Tây + AK, HI → bảng STATES; trường SUPPLIERS.STATE (FK) lấy giá trị từ STATES.STATE.
 
 ---
 
@@ -166,3 +201,19 @@ Chương định nghĩa quy tắc nghiệp vụ—ràng buộc dựa trên cách
 11. Cấu trúc điển hình của bảng xác thực?
 12. Mối liên hệ giữa quy tắc và bảng xác thực?
 13. Tại sao nên rà soát tất cả Tờ Đặc tả đã hoàn thành?
+
+### Đáp án
+
+1. Phát biểu áp đặt ràng buộc lên khía cạnh cụ thể của cơ sở dữ liệu (thành tố đặc tả trường hoặc đặc điểm mối quan hệ), dựa trên cách tổ chức nhận thức và sử dụng dữ liệu.
+2. **Hướng cơ sở dữ liệu** và **hướng ứng dụng**.
+3. **Không.** Quy tắc hướng ứng dụng thiết lập trong thiết kế vật lý hoặc ứng dụng.
+4. **Trường cụ thể** và **mối quan hệ cụ thể**.
+5. Ràng buộc các thành tố của đặc tả trường cho một trường cụ thể.
+6. Khi chèn, xóa hoặc cập nhật bản ghi hoặc giá trị trường.
+7. Điền Tờ Đặc tả Quy tắc nghiệp vụ cho mỗi quy tắc.
+8. Bất kỳ hai trong số: ghi mọi quy tắc; định dạng chuẩn; dễ theo dõi và xử lý sự cố.
+9. Ghi các sửa đổi đã thực hiện—ngày, người; quan trọng cho xử lý sự cố.
+10. Lưu tập giá trị hợp lệ để thi hành ràng buộc phạm vi giá trị.
+11. Hai trường—khóa chính và trường không khóa lưu giá trị.
+12. Khi quy tắc giới hạn phạm vi giá trị của trường với tập cố định, dùng bảng xác thực để thi hành.
+13. Đảm bảo quy tắc được thiết lập đúng và mọi vùng được đánh dấu; sửa lỗi.

@@ -202,3 +202,16 @@ Chúng ta kết thúc chương này bằng thảo luận ngắn về các phươ
 9. Nêu hai lợi ích của việc áp dụng các kỹ thuật thiết kế tốt.
 
 10. Đúng hay Sai: Bạn có thể rút ngắn qua một số quy trình thiết kế và vẫn đạt được thiết kế vững chắc, tốt.
+
+### Đáp án
+
+1. **Sau khi bạn thiết kế cấu trúc logic** của cơ sở dữ liệu.
+2. **Đúng.** Thiết kế quan trọng đối với tính nhất quán, toàn vẹn và chính xác của dữ liệu.
+3. **Thông tin không chính xác**.
+4. Mô hình cơ sở dữ liệu quan hệ dựa trên **lý thuyết tập hợp và logic vị từ bậc nhất**.
+5. Bất kỳ hai trong số: trang bị kỹ năng thiết kế cấu trúc vững chắc; cung cấp kỹ thuật từng bước có tổ chức; tối thiểu hóa sai sót và lặp lại; làm thiết kế dễ và nhanh hơn; giúp sử dụng RDBMS đầy đủ hơn.
+6. **Đúng.** Hiểu thiết kế cơ sở dữ liệu giúp bạn sử dụng RDBMS hiệu quả hơn.
+7. Bất kỳ hai trong số: hỗ trợ truy xuất thông tin theo yêu cầu và ad hoc; bảng được xây đúng và hiệu quả; tính toàn vẹn dữ liệu ở cấp trường, bảng và mối quan hệ; hỗ trợ quy tắc nghiệp vụ; tạo điều kiện phát triển tương lai.
+8. **Tính toàn vẹn dữ liệu**.
+9. Bất kỳ hai trong số: cấu trúc dễ sửa đổi và bảo trì; dữ liệu dễ sửa đổi; thông tin dễ truy xuất; ứng dụng người dùng cuối dễ phát triển.
+10. **Sai.** Bạn không thể rút ngắn quy trình và vẫn đạt được thiết kế vững chắc, tốt.

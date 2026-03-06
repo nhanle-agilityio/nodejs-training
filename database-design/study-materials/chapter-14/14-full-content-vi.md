@@ -30,16 +30,16 @@ Bạn có thể đánh giá đúng nguy hiểm của cơ sở dữ liệu thiế
 
 ## Thiết kế "Flat-File"
 
-Thiết kế flat-file (còn gọi "ném-tất-cả-vào-một-bảng-lớn") tồn tại nhiều năm và phổ biến trong cơ sở dữ liệu thiết kế cho hệ thống không quan hệ.
+Thiết kế flat-file (còn gọi "ném-tất-cả-vào-một-bảng-lớn") tồn tại nhiều năm và phổ biến trong cơ sở dữ liệu thiết kế cho hệ thống không quan hệ. Thiết kế này cố nhồi nhét mọi thứ vào một bảng duy nhất.
 
-**Các vấn đề:**
-- **Trường đa phần:** SALES REP NAME gồm tên và họ; CUSTOMER ADDRESS gồm đường, thành phố, bang, ZIP
-- **Trường tính toán:** ORDER AMOUNT; ITEM # EXTENSION (số lượng × giá)
-- **Trường trùng không cần thiết:** ITEM 1, ITEM 2, ITEM 3; tương tự cho QUANTITY, PRICE
-- **Không có khóa chính thực:** ORDER NUMBER có thể lặp nếu khách đặt hơn ba mặt hàng
-- **Bảng đại diện nhiều chủ đề:** Khách hàng, đơn hàng, mặt hàng (và đại diện bán hàng)
+**Các vấn đề điển hình:**
+- **Trường đa phần (multipart):** SALES REP NAME gộp tên và họ; CUSTOMER ADDRESS gộp đường, thành phố, bang, ZIP—vi phạm nguyên tắc trường nguyên tố
+- **Trường tính toán:** ORDER AMOUNT; ITEM # EXTENSION (số lượng × giá) tính thủ công—bảng không nên chứa giá trị tính toán
+- **Trường trùng không cần thiết:** ITEM 1, ITEM 2, ITEM 3; tương tự QUANTITY 1, 2, 3; PRICE 1, 2, 3—tạo cấu trúc cứng nhắc và dư thừa
+- **Không có khóa chính thực:** ORDER NUMBER có thể lặp nếu khách đặt hơn ba mặt hàng (cấu trúc giới hạn số dòng mỗi đơn)
+- **Bảng đại diện nhiều chủ đề:** Một bảng chứa khách hàng, đơn hàng, mặt hàng và đại diện bán hàng—vi phạm nguyên tắc mỗi bảng một chủ đề
 
-**Kết quả:** Dữ liệu dư thừa, không nhất quán; thiếu tính toàn vẹn dữ liệu. **Tránh hoàn toàn.**
+**Kết quả:** Dữ liệu dư thừa, không nhất quán, thiếu tính toàn vẹn dữ liệu. **Tránh hoàn toàn.** Cách sửa: đưa qua quy trình thiết kế hoàn chỉnh bạn vừa học.
 
 ---
 

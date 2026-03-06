@@ -14,7 +14,7 @@
 ## Các chủ đề trong chương này
 
 - Tại sao nên Rà soát Tính toàn vẹn Dữ liệu
-- Rà soát và Tinh chỉnh Tính toàn vẹn Dữ liệu
+- Rà soát và Tinh chỉnh Tính toàn vẹn Dữ liệu (Table-Level, Field-Level, Relationship-Level, Business Rules, Views)
 - Tập hợp Tài liệu Cơ sở Dữ liệu
 - Hoàn tất!
 - Ví dụ: Kết thúc
