@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "WaraChow DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "warachow_db",
+      "Username": "warachow",
+      "SSLMode": "prefer"
+    }
+  }
+}
