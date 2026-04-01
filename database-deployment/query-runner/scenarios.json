@@ -1,0 +1,116 @@
+{
+  "description": "Core checks for the schema",
+  "cases": [
+    {
+      "id": "auth-sign-in",
+      "description": "Resolve user by email for authentication.",
+      "file": "user-management/sign_in_by_email.sql",
+      "bindFromQuery": "SELECT email FROM users WHERE password IS NOT NULL LIMIT 1",
+      "paramFields": ["email"]
+    },
+    {
+      "id": "auth-email-taken",
+      "description": "Email uniqueness (registration guard).",
+      "file": "user-management/email_exists.sql",
+      "bindFromQuery": "SELECT email FROM users LIMIT 1",
+      "paramFields": ["email"]
+    },
+    {
+      "id": "auth-social",
+      "description": "Resolve account via OAuth provider + provider user id.",
+      "file": "user-management/find_user_by_social.sql",
+      "bindFromQuery": "SELECT provider, client_id FROM social_accounts LIMIT 1",
+      "paramFields": ["provider", "client_id"]
+    },
+    {
+      "id": "catalog-categories",
+      "description": "Browse menu categories.",
+      "file": "catalog/list_categories.sql"
+    },
+    {
+      "id": "catalog-dishes",
+      "description": "Active dishes under a category.",
+      "file": "catalog/dishes_by_category.sql",
+      "bindFromQuery": "SELECT id AS category_id FROM categories LIMIT 1",
+      "paramFields": ["category_id"]
+    },
+    {
+      "id": "catalog-ingredients",
+      "description": "Dish composition (ingredients join).",
+      "file": "catalog/ingredients_for_dish.sql",
+      "bindFromQuery": "SELECT id AS dish_id FROM dish_items LIMIT 1",
+      "paramFields": ["dish_id"]
+    },
+    {
+      "id": "catalog-search",
+      "description": "Search dishes by name.",
+      "file": "catalog/search_dishes_by_name.sql",
+      "params": ["%rice%"]
+    },
+    {
+      "id": "cart-view",
+      "description": "Cart contents with line totals.",
+      "file": "cart/view_cart.sql",
+      "bindFromQuery": "SELECT user_id FROM carts LIMIT 1",
+      "paramFields": ["user_id"]
+    },
+    {
+      "id": "orders-with-customers",
+      "description": "Orders with customer identity.",
+      "file": "orders/orders_list_with_customer.sql",
+      "params": [10]
+    },
+    {
+      "id": "order-summary",
+      "description": "Order header with delivery address.",
+      "file": "orders/order_summary_with_address.sql",
+      "bindFromQuery": "SELECT id AS order_id FROM orders LIMIT 1",
+      "paramFields": ["order_id"]
+    },
+    {
+      "id": "order-lines",
+      "description": "Order line items (price snapshot).",
+      "file": "orders/order_line_items.sql",
+      "bindFromQuery": "SELECT id AS order_id FROM orders LIMIT 1",
+      "paramFields": ["order_id"]
+    },
+    {
+      "id": "payment-success-exists",
+      "description": "Order has a successful payment.",
+      "file": "payments/order_has_successful_payment.sql",
+      "bindFromQuery": "SELECT o.id AS order_id FROM orders o JOIN payments p ON p.order_id = o.id AND p.status = 'successful' LIMIT 1",
+      "paramFields": ["order_id"]
+    },
+    {
+      "id": "addresses",
+      "description": "Saved delivery addresses for a user.",
+      "file": "addresses/list_addresses.sql",
+      "bindFromQuery": "SELECT user_id FROM addresses LIMIT 1",
+      "paramFields": ["user_id"]
+    },
+    {
+      "id": "wishlist",
+      "description": "Wishlist with dish details.",
+      "file": "wishlist/wishlist_with_dish_details.sql",
+      "bindFromQuery": "SELECT user_id FROM wishlist LIMIT 1",
+      "paramFields": ["user_id"]
+    },
+    {
+      "id": "loyalty-balance",
+      "description": "Loyalty points balance.",
+      "file": "loyalty/loyalty_balance.sql",
+      "bindFromQuery": "SELECT user_id FROM loyalty_accounts LIMIT 1",
+      "paramFields": ["user_id"]
+    },
+    {
+      "id": "loyalty-rules",
+      "description": "Points conversion rules.",
+      "file": "loyalty/list_points_rules.sql"
+    },
+    {
+      "id": "promotions",
+      "description": "Active catalog discounts.",
+      "file": "promotions/list_active_discounts.sql"
+    }
+  ]
+}
