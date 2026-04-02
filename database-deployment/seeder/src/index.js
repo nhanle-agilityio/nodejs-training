@@ -1,12 +1,18 @@
 import { query, getClient, end } from './db.js';
+import { SEED_CONFIG } from './seed-config.js';
 import { seedUsers, seedSocialAccounts, seedAddresses } from './seed-users.js';
 import { seedCategories, seedIngredients, seedDishes, seedCombos, seedMealPlans } from './seed-menu.js';
 import { seedCarts, seedVouchers, seedDiscounts, seedOrders, seedReviews, seedWishlistAndLikes } from './seed-orders.js';
 import { seedLoyalty } from './seed-loyalty.js';
 
 const main = async () => {
-  console.log('🌱 WaraChow Faker.js Seeder');
+  const cfg = SEED_CONFIG;
+
+  console.log('WaraChow Faker.js Seeder');
   console.log('===========================\n');
+  console.log(
+    `  ${cfg.userCount.toLocaleString()} users, +${cfg.extraDishes} extra dishes, orders/user 0–${cfg.ordersPerUserMax}\n`
+  );
 
   const client = await getClient();
 
@@ -29,36 +35,44 @@ const main = async () => {
     `);
 
     console.log('[2/7] Seeding users & addresses...');
-    const userIds = await seedUsers(client, 20);
-    await seedSocialAccounts(client, userIds);
-    const { userAddressMap } = await seedAddresses(client, userIds);
+    const userIds = await seedUsers(client, cfg.userCount, cfg.userBatchSize);
+    await seedSocialAccounts(client, userIds, cfg.socialLinkProbability);
+    const { userAddressMap } = await seedAddresses(client, userIds, cfg);
 
     console.log('[3/7] Seeding menu & catalog...');
     const categoryIds = await seedCategories(client);
     const ingredientIds = await seedIngredients(client);
-    const dishIds = await seedDishes(client, categoryIds, ingredientIds);
+    const dishIds = await seedDishes(client, categoryIds, ingredientIds, cfg.extraDishes);
     await seedCombos(client, dishIds);
     await seedMealPlans(client);
 
     console.log('[4/7] Seeding carts...');
-    await seedCarts(client, userIds, dishIds);
+    await seedCarts(client, userIds, dishIds, cfg.cartItemsMax);
 
     console.log('[5/7] Seeding vouchers, discounts & orders...');
-    const voucherIds = await seedVouchers(client);
+    const voucherIds = await seedVouchers(client, cfg.extraRandomVouchers);
     const discountIds = await seedDiscounts(client);
-    const orderIds = await seedOrders(client, userIds, dishIds, userAddressMap, voucherIds, discountIds);
+    await seedOrders(
+      client,
+      userIds,
+      dishIds,
+      userAddressMap,
+      voucherIds,
+      discountIds,
+      cfg
+    );
 
     console.log('[6/7] Seeding reviews & engagement...');
-    await seedReviews(client, userIds, dishIds);
-    await seedWishlistAndLikes(client, userIds, dishIds);
+    await seedReviews(client, userIds, dishIds, cfg);
+    await seedWishlistAndLikes(client, userIds, dishIds, cfg);
 
     console.log('[7/7] Seeding loyalty program...');
-    await seedLoyalty(client, userIds, orderIds);
+    await seedLoyalty(client, userIds);
 
     await client.query('COMMIT');
 
     console.log('\n===========================');
-    console.log('✅ Seeding complete!\n');
+    console.log('Seeding complete!\n');
 
     const counts = await query(`
       SELECT 'users' AS tbl, COUNT(*) AS cnt FROM users
@@ -85,14 +99,14 @@ const main = async () => {
       ORDER BY tbl
     `);
 
-    console.log('📊 Final row counts:');
+    console.log('Final row counts:');
     for (const row of counts.rows) {
       console.log(`   ${row.tbl.padEnd(25)} ${row.cnt} rows`);
     }
 
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('❌ Seeding failed:', err.message);
+    console.error('Seeding failed:', err.message);
     process.exit(1);
   } finally {
     client.release();

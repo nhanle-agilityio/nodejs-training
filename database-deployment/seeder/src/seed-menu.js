@@ -63,30 +63,48 @@ export const seedIngredients = async (client) => {
   return ingredientIds;
 };
 
-export const seedDishes = async (client, categoryIds, ingredientIds) => {
-  const dishIds = [];
+const slug = (s) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-  for (const dishName of DISH_NAMES) {
-    const res = await client.query(
-      `INSERT INTO dish_items (name, description, image_url, price, category_id, is_best_seller, avg_rating, total_ratings, like_count)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id`,
-      [
+export const seedDishes = async (client, categoryIds, ingredientIds, extraCount = 0) => {
+  const dishIds = [];
+  const names = [...DISH_NAMES];
+
+  for (let k = 0; k < extraCount; k++) {
+    const base = faker.helpers.arrayElement(DISH_NAMES);
+    const suffix = faker.string.alphanumeric({ length: 6, casing: 'lower' });
+    names.push(`${base} (${suffix})`);
+  }
+
+  const batchSize = 80;
+  for (let i = 0; i < names.length; i += batchSize) {
+    const chunk = names.slice(i, i + batchSize);
+    const parts = [];
+    const params = [];
+    let p = 1;
+    for (const dishName of chunk) {
+      parts.push(`($${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++})`);
+      params.push(
         dishName,
         faker.food.description(),
-        `https://cdn.warachow.com/dishes/${dishName.toLowerCase().replace(/\s+/g, '-')}.jpg`,
+        `https://cdn.warachow.com/dishes/${slug(dishName)}.jpg`,
         faker.number.float({ min: 300, max: 5000, multipleOf: 50 }),
         faker.helpers.arrayElement(categoryIds),
         faker.datatype.boolean(0.25),
         faker.number.float({ min: 3.0, max: 5.0, multipleOf: 0.1 }),
         faker.number.int({ min: 10, max: 500 }),
-        faker.number.int({ min: 5, max: 300 }),
-      ]
+        faker.number.int({ min: 5, max: 300 })
+      );
+    }
+    const res = await client.query(
+      `INSERT INTO dish_items (name, description, image_url, price, category_id, is_best_seller, avg_rating, total_ratings, like_count)
+       VALUES ${parts.join(', ')}
+       RETURNING id`,
+      params
     );
-    dishIds.push(res.rows[0].id);
+    for (const row of res.rows) dishIds.push(row.id);
   }
 
-  console.log(`    ✓ ${dishIds.length} dishes created`);
+  console.log(`    ✓ ${dishIds.length} dishes created (${DISH_NAMES.length} named + ${extraCount} extra)`);
 
   let linkCount = 0;
   for (const dishId of dishIds) {
