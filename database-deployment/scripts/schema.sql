@@ -271,3 +271,26 @@ CREATE TABLE loyalty_transactions (
     points_rule_id  UUID        REFERENCES points_rules(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+-- Indexes
+-- ============================================================
+
+CREATE INDEX idx_addresses_user_id ON addresses(user_id);
+CREATE INDEX idx_dish_items_category_id ON dish_items(category_id);
+CREATE INDEX idx_dish_ingredients_ingredient_id ON dish_ingredients(ingredient_id);
+CREATE INDEX idx_combo_items_dish_id ON combo_items(dish_id);
+CREATE INDEX idx_meal_plan_details_meal_plan_id ON meal_plan_details(meal_plan_id);
+CREATE INDEX idx_cart_items_cart_id ON cart_items(cart_id);
+CREATE INDEX idx_cart_items_dish_id ON cart_items(dish_id);
+CREATE INDEX idx_orders_address_id ON orders(address_id);
+CREATE INDEX idx_orders_voucher_id ON orders(voucher_id);
+CREATE INDEX idx_orders_discount_id ON orders(discount_id);
+CREATE INDEX idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX idx_order_items_dish_id ON order_items(dish_id);
+CREATE INDEX idx_payments_order_id ON payments(order_id);
+CREATE INDEX idx_reviews_dish_id ON reviews(dish_id);
+CREATE INDEX idx_wishlist_dish_id ON wishlist(dish_id);
+CREATE INDEX idx_user_likes_dish_id ON user_likes(dish_id);
+CREATE INDEX idx_loyalty_transactions_user_id ON loyalty_transactions(user_id);
+CREATE INDEX idx_loyalty_transactions_order_id ON loyalty_transactions(order_id) WHERE order_id IS NOT NULL;
