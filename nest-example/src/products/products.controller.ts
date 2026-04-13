@@ -7,8 +7,9 @@ import {
   Post,
   Query,
   Patch,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import type { Product } from './product.model';
+import { Product } from './product.entity';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { UpdateProductDto } from './update-product.dto';
@@ -18,30 +19,30 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  getProducts(@Query('searchTerm') searchTerm: string): Product[] {
+  getProducts(@Query('searchTerm') searchTerm: string): Promise<Product[]> {
     return this.productsService.getProducts(searchTerm);
   }
 
   @Get(':id')
-  getProductDetails(@Param('id') id: string): Product {
+  getProductDetails(@Param('id', ParseUUIDPipe) id: string): Promise<Product> {
     return this.productsService.getProductById(id);
   }
 
   @Post()
-  createProduct(@Body() dto: CreateProductDto): Product {
+  createProduct(@Body() dto: CreateProductDto): Promise<Product> {
     return this.productsService.createProduct(dto);
   }
 
   @Patch(':id')
   updateProduct(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
-  ): Product {
+  ): Promise<Product> {
     return this.productsService.updateProduct(id, dto);
   }
 
   @Delete(':id')
-  deleteProduct(@Param('id') id: string): void {
-    this.productsService.deleteProduct(id);
+  deleteProduct(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.productsService.deleteProduct(id);
   }
 }
