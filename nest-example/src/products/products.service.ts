@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Product } from './product.model';
+import { randomUUID } from 'crypto';
+import { CreateProductDto } from './create-product.dto';
+import { UpdateProductDto } from './update-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -26,17 +29,23 @@ export class ProductsService {
     return product;
   }
 
-  createProduct(product: Product): Product {
+  createProduct(dto: CreateProductDto): Product {
+    const product: Product = {
+      id: randomUUID(),
+      name: dto.name,
+      description: dto.description ?? '',
+      price: dto.price,
+    };
     this.products.push(product);
     return product;
   }
 
-  updateProduct(id: string, product: Product): Product {
+  updateProduct(id: string, dto: UpdateProductDto): Product {
     const index = this.products.findIndex((p: Product) => p.id === id);
     if (index === -1) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
-    this.products[index] = { ...this.products[index], ...product };
+    this.products[index] = { ...this.products[index], ...dto };
     return this.products[index];
   }
 

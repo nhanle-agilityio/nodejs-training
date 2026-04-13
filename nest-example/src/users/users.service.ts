@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { User } from './user.model';
 import { randomUUID } from 'crypto';
+import { CreateUserDto } from './create-user.dto';
+import { UpdateUserDto } from './update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -53,16 +55,16 @@ export class UsersService {
     return user;
   }
 
-  createUser(
-    user: Pick<User, 'username' | 'email' | 'password'>,
-  ): Omit<User, 'password'> {
-    const existingUser = this.users.find((u: User) => u.email === user.email);
+  createUser(dto: CreateUserDto): Omit<User, 'password'> {
+    const existingUser = this.users.find((u: User) => u.email === dto.email);
     if (existingUser) {
       throw new BadRequestException('Email already exists');
     }
     const newUser: User = {
       id: randomUUID(),
-      ...user,
+      username: dto.username,
+      email: dto.email,
+      password: dto.password,
     };
     this.users.push(newUser);
 
@@ -70,23 +72,19 @@ export class UsersService {
     return { id, username, email };
   }
 
-  updateUser(
-    id: string,
-    user: Partial<Pick<User, 'username' | 'email' | 'password'>>,
-  ): Omit<User, 'password'> {
+  updateUser(id: string, dto: UpdateUserDto): Omit<User, 'password'> {
     const existingUser = this.users.find((u: User) => u.id === id);
     if (!existingUser) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
-
-    if (user.email && existingUser.email !== user.email) {
-      const emailValid = !this.users.find((u: User) => u.email === user.email);
+    if (dto.email && existingUser.email !== dto.email) {
+      const emailValid = !this.users.find((u: User) => u.email === dto.email);
 
       if (!emailValid) {
         throw new BadRequestException('Email already exists');
       }
     }
-    const updatedUser: User = { ...existingUser, ...user };
+    const updatedUser: User = { ...existingUser, ...dto };
     return {
       id: updatedUser.id,
       username: updatedUser.username,

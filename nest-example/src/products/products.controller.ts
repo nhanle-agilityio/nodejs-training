@@ -10,7 +10,8 @@ import {
 } from '@nestjs/common';
 import type { Product } from './product.model';
 import { ProductsService } from './products.service';
-import { randomUUID } from 'crypto';
+import { CreateProductDto } from './create-product.dto';
+import { UpdateProductDto } from './update-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -27,20 +28,16 @@ export class ProductsController {
   }
 
   @Post()
-  createProduct(
-    @Body() body: Pick<Product, 'name' | 'description' | 'price'>,
-  ): Product {
-    return this.productsService.createProduct({
-      id: randomUUID(),
-      name: body.name,
-      description: body.description,
-      price: body.price,
-    });
+  createProduct(@Body() dto: CreateProductDto): Product {
+    return this.productsService.createProduct(dto);
   }
 
   @Patch(':id')
-  updateProduct(@Param('id') id: string, @Body() product: Product): Product {
-    return this.productsService.updateProduct(id, product);
+  updateProduct(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+  ): Product {
+    return this.productsService.updateProduct(id, dto);
   }
 
   @Delete(':id')
