@@ -5,12 +5,18 @@ import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { envValidationSchema } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validationSchema: envValidationSchema,
+      validationOptions: {
+        allowUnknown: true, // Allow unknown keys in the environment variables
+        abortEarly: false, // Continue validation even if some fields are invalid
+      },
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
