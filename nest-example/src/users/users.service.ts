@@ -1,101 +1,117 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from './user.model';
-import { randomUUID } from 'crypto';
+import { User } from './user.entity';
+import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
-  private readonly users: User[] = [
-    {
-      id: '1',
-      username: 'John Doe',
-      email: 'john.doe@example.com',
-      password: 'password',
-    },
-    {
-      id: '2',
-      username: 'Jane Doe',
-      email: 'jane.doe@example.com',
-      password: 'password',
-    },
-    {
-      id: '3',
-      username: 'Jim Doe',
-      email: 'jim.doe@example.com',
-      password: 'password',
-    },
-  ];
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
+  ) {}
 
-  getUsers(): Omit<User, 'password'>[] {
-    return this.users.map(({ id, username, email }) => ({
-      id,
-      username,
-      email,
-    }));
+  async getUsers(): Promise<Omit<User, 'password'>[]> {
+    try {
+      const users = await this.usersRepo.find({
+        select: ['id', 'username', 'email', 'createdAt', 'updatedAt'],
+      });
+      return users;
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
   }
 
-  getUserById(id: string): Omit<User, 'password'> {
-    const user = this.users.find((user: User) => {
-      if (user.id === id) {
-        return {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-        };
+  async getUserById(id: string): Promise<Omit<User, 'password'>> {
+    try {
+      const user = await this.usersRepo.findOne({
+        where: { id },
+        select: ['id', 'username', 'email', 'createdAt', 'updatedAt'],
+      });
+      if (!user) {
+        throw new NotFoundException(`User with id ${id} not found`);
       }
-    });
-    if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
+      return user;
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
     }
-    return user;
   }
 
-  createUser(dto: CreateUserDto): Omit<User, 'password'> {
-    const existingUser = this.users.find((u: User) => u.email === dto.email);
-    if (existingUser) {
-      throw new BadRequestException('Email already exists');
+  async createUser(dto: CreateUserDto): Promise<Omit<User, 'password'>> {
+    const emailTaken = await this.usersRepo.exist({
+      where: { email: dto.email },
+    });
+    if (emailTaken) {
+      throw new ConflictException('Email is already registered');
     }
-    const newUser: User = {
-      id: randomUUID(),
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const newUserData = {
       username: dto.username,
       email: dto.email,
-      password: dto.password,
+      password: hashedPassword,
     };
-    this.users.push(newUser);
 
-    const { id, username, email } = newUser;
-    return { id, username, email };
+    try {
+      const newUser = await this.usersRepo.save(newUserData);
+      return {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        createdAt: newUser.createdAt,
+        updatedAt: newUser.updatedAt,
+      };
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
   }
 
-  updateUser(id: string, dto: UpdateUserDto): Omit<User, 'password'> {
-    const existingUser = this.users.find((u: User) => u.id === id);
+  async updateUser(
+    id: string,
+    dto: UpdateUserDto,
+  ): Promise<Omit<User, 'password'>> {
+    const existingUser = await this.usersRepo.findOne({ where: { id } });
     if (!existingUser) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
-    if (dto.email && existingUser.email !== dto.email) {
-      const emailValid = !this.users.find((u: User) => u.email === dto.email);
 
-      if (!emailValid) {
-        throw new BadRequestException('Email already exists');
+    if (dto.email !== undefined && dto.email !== existingUser.email) {
+      const emailTaken = await this.usersRepo.exist({
+        where: { email: dto.email },
+      });
+      if (emailTaken) {
+        throw new ConflictException('Email is already registered');
       }
     }
-    const updatedUser: User = { ...existingUser, ...dto };
-    return {
-      id: updatedUser.id,
-      username: updatedUser.username,
-      email: updatedUser.email,
-    };
+
+    Object.assign(existingUser, dto);
+
+    try {
+      const updatedUser = await this.usersRepo.save(existingUser);
+      return {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt,
+      };
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
   }
 
-  deleteUser(id: string): void {
-    const index = this.users.findIndex((user: User) => user.id === id);
-    if (index !== -1) {
-      this.users.splice(index, 1);
+  async deleteUser(id: string): Promise<void> {
+    const result = await this.usersRepo.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`User with id ${id} not found`);
     }
   }
 }
