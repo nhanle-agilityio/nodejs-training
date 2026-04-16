@@ -13,13 +13,18 @@ import { Product } from './product.entity';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { UpdateProductDto } from './update-product.dto';
+import { CorrelationId } from 'src/common/decorators/correlation-id.decorator';
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  getProducts(@Query('searchTerm') searchTerm: string): Promise<Product[]> {
+  getProducts(
+    @Query('searchTerm') searchTerm: string,
+    @CorrelationId() correlationId: string | undefined,
+  ): Promise<Product[]> {
+    console.log('correlationId', correlationId);
     return this.productsService.getProducts(searchTerm);
   }
 
