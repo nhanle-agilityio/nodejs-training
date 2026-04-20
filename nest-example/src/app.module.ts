@@ -1,12 +1,13 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+// import { AppController } from './app.controller';
+// import { AppService } from './app.service';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { envValidationSchema } from './config/env.validation';
 import { LoggerMiddleware } from './common/middlewares/logger';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -33,11 +34,12 @@ import { LoggerMiddleware } from './common/middlewares/logger';
         synchronize: false,
       }),
     }),
+    AuthModule,
     ProductsModule,
     UsersModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  // controllers: [AppController],
+  // providers: [AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
