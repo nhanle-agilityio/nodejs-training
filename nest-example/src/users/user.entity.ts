@@ -12,15 +12,19 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 200 })
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  @Index({ unique: true })
+  clerkId: string | null;
+
+  @Column({ type: 'varchar', length: 200 })
   username: string;
 
-  @Column({ length: 200 })
+  @Column({ type: 'varchar', length: 200 })
   @Index({ unique: true })
   email: string;
 
-  @Column({ length: 200 })
-  password: string;
+  @Column({ type: 'varchar', length: 200, nullable: true, select: false })
+  password: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { envValidationSchema } from './config/env.validation';
 import { LoggerMiddleware } from './common/middlewares/logger';
 import { AuthModule } from './auth/auth.module';
+import { WebhooksModule } from './webhooks/webhook.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
     ProductsModule,
     UsersModule,
+    WebhooksModule,
   ],
   // controllers: [AppController],
   // providers: [AppService],

@@ -10,6 +10,7 @@ import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UpsertUserDto } from './upsert-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -18,22 +19,19 @@ export class UsersService {
     private readonly usersRepo: Repository<User>,
   ) {}
 
-  async getUsers(): Promise<Omit<User, 'password'>[]> {
+  async getUsers(): Promise<User[]> {
     try {
-      const users = await this.usersRepo.find({
-        select: ['id', 'username', 'email', 'createdAt', 'updatedAt'],
-      });
+      const users = await this.usersRepo.find();
       return users;
     } catch (err) {
       throw new BadRequestException((err as Error).message);
     }
   }
 
-  async getUserById(id: string): Promise<Omit<User, 'password'>> {
+  async getUserById(id: string): Promise<User> {
     try {
       const user = await this.usersRepo.findOne({
         where: { id },
-        select: ['id', 'username', 'email', 'createdAt', 'updatedAt'],
       });
       if (!user) {
         throw new NotFoundException(`User with id ${id} not found`);
@@ -44,7 +42,7 @@ export class UsersService {
     }
   }
 
-  async createUser(dto: CreateUserDto): Promise<Omit<User, 'password'>> {
+  async createUser(dto: CreateUserDto): Promise<User> {
     const emailTaken = await this.usersRepo.exist({
       where: { email: dto.email },
     });
@@ -61,22 +59,13 @@ export class UsersService {
 
     try {
       const newUser = await this.usersRepo.save(newUserData);
-      return {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        createdAt: newUser.createdAt,
-        updatedAt: newUser.updatedAt,
-      };
+      return newUser;
     } catch (err) {
       throw new BadRequestException((err as Error).message);
     }
   }
 
-  async updateUser(
-    id: string,
-    dto: UpdateUserDto,
-  ): Promise<Omit<User, 'password'>> {
+  async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
     const existingUser = await this.usersRepo.findOne({ where: { id } });
     if (!existingUser) {
       throw new NotFoundException(`User with id ${id} not found`);
@@ -95,13 +84,7 @@ export class UsersService {
 
     try {
       const updatedUser = await this.usersRepo.save(existingUser);
-      return {
-        id: updatedUser.id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        createdAt: updatedUser.createdAt,
-        updatedAt: updatedUser.updatedAt,
-      };
+      return updatedUser;
     } catch (err) {
       throw new BadRequestException((err as Error).message);
     }
@@ -112,6 +95,37 @@ export class UsersService {
 
     if (result.affected === 0) {
       throw new NotFoundException(`User with id ${id} not found`);
+    }
+  }
+
+  async upsertFromClerk(dto: UpsertUserDto): Promise<User> {
+    const { clerkId, email, username } = dto;
+    const existingUser = await this.usersRepo.findOne({
+      where: [{ clerkId: clerkId }, { email: email }],
+    });
+
+    if (existingUser) {
+      existingUser.clerkId = clerkId;
+      existingUser.email = email;
+      existingUser.username = username || existingUser.username;
+      try {
+        const updatedUser = await this.usersRepo.save(existingUser);
+        return updatedUser;
+      } catch (err) {
+        throw new BadRequestException((err as Error).message);
+      }
+    }
+
+    try {
+      const user = await this.usersRepo.save({
+        clerkId: clerkId,
+        email: email,
+        username: username,
+        password: null,
+      });
+      return user;
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
     }
   }
 }
