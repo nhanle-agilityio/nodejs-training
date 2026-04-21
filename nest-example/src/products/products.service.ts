@@ -26,14 +26,14 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
-    return this.productsRepo.save(product);
+    return product;
   }
 
   async createProduct(dto: CreateProductDto): Promise<Product> {
     const product = this.productsRepo.create({
       name: dto.name,
       price: dto.price,
-      description: dto.description ?? '',
+      description: dto.description,
     });
     return this.productsRepo.save(product);
   }
