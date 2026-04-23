@@ -42,11 +42,15 @@ export class ProductsController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   createProduct(@Body() dto: CreateProductDto): Promise<Product> {
     return this.productsService.createProduct(dto);
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   updateProduct(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
