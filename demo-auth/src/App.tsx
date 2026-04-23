@@ -11,7 +11,7 @@ import {
 import './App.css'
 
 const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3000'
+  (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3000/api/v1'
 
 function TokenPanel() {
   const { getToken, userId, sessionId } = useAuth()
@@ -65,7 +65,7 @@ function TokenPanel() {
   }
 
   const role = (user?.publicMetadata as { role?: string } | undefined)?.role
-  const deletePath = `/api/products/${deleteProductId.trim() || '1'}`
+  const deletePath = `/products/${deleteProductId.trim() || '1'}`
 
   return (
     <div className="panel">
@@ -116,11 +116,11 @@ function TokenPanel() {
         />
       </div>
       <div className="actions">
-        <button onClick={() => callApi('/api/products', 'GET')} disabled={loading}>
-          GET /api/products
+        <button onClick={() => callApi('/products', 'GET')} disabled={loading}>
+          GET /products
         </button>
-        <button onClick={() => callApi('/api/products', 'POST')} disabled={loading}>
-          POST /api/products
+        <button onClick={() => callApi('/products', 'POST')} disabled={loading}>
+          POST /products
         </button>
         <button
           onClick={() => callApi(deletePath, 'DELETE')}
