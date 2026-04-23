@@ -14,9 +14,10 @@ import {
 describe('Products (E2E)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
-  const baseUrl = '/api/products';
+  const baseUrl = '/api/v1/products';
   const mockUUID = '6a425c1f-954b-4c1d-b5bc-a6ba9205bd66';
-  const http = () => request(app.getHttpServer());
+  const http = () =>
+    request(app.getHttpServer() as Parameters<typeof request>[0]);
 
   beforeAll(async () => {
     const ctx = await createE2eApp();
@@ -46,7 +47,7 @@ describe('Products (E2E)', () => {
     );
   };
 
-  describe('GET /api/products (Public API - No Auth)', () => {
+  describe('GET /api/v1/products (Public API - No Auth)', () => {
     it('Return empty array when no data, without token', async () => {
       const res = await http().get(baseUrl);
 
@@ -83,7 +84,7 @@ describe('Products (E2E)', () => {
     });
   });
 
-  describe('GET /api/products/:id (Authenticated)', () => {
+  describe('GET /api/v1/products/:id (Authenticated)', () => {
     it('200 — return product when user has a valid token', async () => {
       const saved = await seedProduct({ name: 'Target' });
 
@@ -146,7 +147,7 @@ describe('Products (E2E)', () => {
     });
   });
 
-  describe('POST /api/products (Admin only)', () => {
+  describe('POST /api/v1/products (Admin only)', () => {
     it('201 — admin can create', async () => {
       const res = await http().post(baseUrl).set(asAdmin()).send({
         name: 'New Product',
@@ -187,7 +188,7 @@ describe('Products (E2E)', () => {
     });
   });
 
-  describe('PATCH /api/products/:id (Admin only)', () => {
+  describe('PATCH /api/v1/products/:id (Admin only)', () => {
     it('200 — admin can update', async () => {
       const saved = await seedProduct({ name: 'Target' });
 
@@ -266,7 +267,7 @@ describe('Products (E2E)', () => {
     });
   });
 
-  describe('DELETE /api/products/:id (Admin only)', () => {
+  describe('DELETE /api/v1/products/:id (Admin only)', () => {
     it('200 — admin can delete', async () => {
       const saved = await seedProduct({ name: 'Target' });
 
