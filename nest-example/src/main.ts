@@ -14,6 +14,11 @@ async function bootstrap() {
     type: VersioningType.URI,
     defaultVersion: '1',
   });
+  // app.enableVersioning({
+  //   type: VersioningType.HEADER,
+  //   header: 'X-API-Version',
+  //   defaultVersion: '1',
+  // });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

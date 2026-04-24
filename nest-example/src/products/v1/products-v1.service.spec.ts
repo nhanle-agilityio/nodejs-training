@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProductsService } from './products.service';
-import { Product } from './product.entity';
+import { ProductsV1Service } from './products-v1.service';
+import { Product } from '../product.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DeleteResult, ILike, Repository } from 'typeorm';
-import { CreateProductDto } from './create-product.dto';
-import { UpdateProductDto } from './update-product.dto';
+import { CreateProductDto } from './create-product-v1.dto';
+import { UpdateProductDto } from './update-product-v1.dto';
 import { NotFoundException } from '@nestjs/common';
 
 describe('ProductsService', () => {
-  let service: ProductsService;
+  let service: ProductsV1Service;
   let repo: jest.Mocked<
     Pick<Repository<Product>, 'find' | 'findOne' | 'create' | 'save' | 'delete'>
   >;
@@ -43,12 +43,12 @@ describe('ProductsService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ProductsService,
+        ProductsV1Service,
         { provide: getRepositoryToken(Product), useValue: repo },
       ],
     }).compile();
 
-    service = module.get<ProductsService>(ProductsService);
+    service = module.get<ProductsV1Service>(ProductsV1Service);
   });
 
   it('should be defined', () => {

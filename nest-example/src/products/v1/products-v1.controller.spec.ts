@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProductsController } from './products.controller';
-import { ProductsService } from './products.service';
-import { Product } from './product.entity';
-import { CreateProductDto } from './create-product.dto';
-import { UpdateProductDto } from './update-product.dto';
+import { ProductsV1Controller } from './products-v1.controller';
+import { ProductsV1Service } from './products-v1.service';
+import { Product } from '../product.entity';
+import { CreateProductDto } from './create-product-v1.dto';
+import { UpdateProductDto } from './update-product-v1.dto';
 
 describe('ProductsController', () => {
-  let controller: ProductsController;
+  let controller: ProductsV1Controller;
   let service: jest.Mocked<
     Pick<
-      ProductsService,
+      ProductsV1Service,
       | 'getProducts'
       | 'getProductById'
       | 'createProduct'
@@ -48,11 +48,11 @@ describe('ProductsController', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProductsController],
-      providers: [{ provide: ProductsService, useValue: service }],
+      controllers: [ProductsV1Controller],
+      providers: [{ provide: ProductsV1Service, useValue: service }],
     }).compile();
 
-    controller = module.get<ProductsController>(ProductsController);
+    controller = module.get<ProductsV1Controller>(ProductsV1Controller);
   });
 
   it('should be defined', () => {

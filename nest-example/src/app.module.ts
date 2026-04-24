@@ -1,7 +1,4 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-// import { AppController } from './app.controller';
-// import { AppService } from './app.service';
-import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -9,6 +6,8 @@ import { envValidationSchema } from './config/env.validation';
 import { LoggerMiddleware } from './common/middlewares/logger';
 import { AuthModule } from './auth/auth.module';
 import { WebhooksModule } from './webhooks/webhook.module';
+import { ProductsV2Module } from './products/v2/products-v2.module';
+import { ProductsV1Module } from './products/v1/products-v1.module';
 
 @Module({
   imports: [
@@ -36,7 +35,8 @@ import { WebhooksModule } from './webhooks/webhook.module';
       }),
     }),
     AuthModule,
-    ProductsModule,
+    ProductsV1Module,
+    ProductsV2Module,
     UsersModule,
     WebhooksModule,
   ],

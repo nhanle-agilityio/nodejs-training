@@ -10,10 +10,10 @@ import {
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
-import { Product } from './product.entity';
-import { ProductsService } from './products.service';
-import { CreateProductDto } from './create-product.dto';
-import { UpdateProductDto } from './update-product.dto';
+import { Product } from '../product.entity';
+import { ProductsV1Service } from './products-v1.service';
+import { CreateProductDto } from './create-product-v1.dto';
+import { UpdateProductDto } from './update-product-v1.dto';
 import { CorrelationId } from 'src/common/decorators/correlation-id.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -26,10 +26,10 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 
-@Controller('products')
-@ApiTags('products')
-export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+@Controller({ path: 'products', version: '1' })
+@ApiTags('products v1')
+export class ProductsV1Controller {
+  constructor(private readonly productsService: ProductsV1Service) {}
 
   @Public()
   @Get()
