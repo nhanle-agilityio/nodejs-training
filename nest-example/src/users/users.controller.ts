@@ -21,7 +21,6 @@ import {
 } from '@nestjs/swagger';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
-import { UserResponseDto } from './user-response.dto';
 
 @Controller('users')
 @ApiTags('users')
@@ -36,9 +35,9 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'List of users returned',
-    type: [UserResponseDto],
+    type: [User],
   })
-  getUsers(): Promise<Omit<User, 'password'>[]> {
+  getUsers(): Promise<User[]> {
     return this.usersService.getUsers();
   }
 
@@ -47,11 +46,9 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'User details returned',
-    type: UserResponseDto,
+    type: User,
   })
-  getUserDetails(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<Omit<User, 'password'>> {
+  getUserDetails(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     return this.usersService.getUserById(id);
   }
 
@@ -60,9 +57,9 @@ export class UsersController {
   @ApiResponse({
     status: 201,
     description: 'User created successfully',
-    type: UserResponseDto,
+    type: User,
   })
-  createUser(@Body() dto: CreateUserDto): Promise<Omit<User, 'password'>> {
+  createUser(@Body() dto: CreateUserDto): Promise<User> {
     return this.usersService.createUser(dto);
   }
 
@@ -71,12 +68,12 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'User updated successfully',
-    type: UserResponseDto,
+    type: User,
   })
   updateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
-  ): Promise<Omit<User, 'password'>> {
+  ): Promise<User> {
     return this.usersService.updateUser(id, dto);
   }
 
