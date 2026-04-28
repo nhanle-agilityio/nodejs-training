@@ -8,41 +8,48 @@ import {
   Delete,
   ParseUUIDPipe,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './create-user.dto';
-import { UpdateUserDto } from './update-user.dto';
-import { User } from './user.entity';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { UsersService } from './users.service';
+import { CreateUserDto } from './create-user.dto';
+import { UpdateUserDto } from './update-user.dto';
+import { User } from './user.entity';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
+import { CorrelationId } from 'src/common/decorators/correlation-id.decorator';
 
 @Controller('users')
 @ApiTags('users')
 @ApiBearerAuth('clerk-jwt')
+@UseInterceptors(CacheInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Get all users' })
+  @CacheTTL(30_000)
+  @ApiOperation({ summary: 'Get all users (cached ~30s)' })
   @ApiResponse({
     status: 200,
     description: 'List of users returned',
     type: [User],
   })
-  getUsers(): Promise<User[]> {
+  getUsers(@CorrelationId() correlationId?: string): Promise<User[]> {
+    console.log('correlationId', correlationId);
     return this.usersService.getUsers();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get user details by ID' })
+  @CacheTTL(120_000) // 2 minutes — single item rarely changes
+  @ApiOperation({ summary: 'Get user details by ID (cached ~2m)' })
   @ApiResponse({
     status: 200,
     description: 'User details returned',
@@ -53,7 +60,7 @@ export class UsersController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new user' })
+  @ApiOperation({ summary: 'Create a new user (invalidates list cache)' })
   @ApiResponse({
     status: 201,
     description: 'User created successfully',
@@ -64,7 +71,9 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update user by ID' })
+  @ApiOperation({
+    summary: 'Update user by ID (invalidates list + item cache)',
+  })
   @ApiResponse({
     status: 200,
     description: 'User updated successfully',
@@ -80,7 +89,9 @@ export class UsersController {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Delete user by ID' })
+  @ApiOperation({
+    summary: 'Delete user by ID (invalidates list + item cache)',
+  })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   deleteUser(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.usersService.deleteUser(id);

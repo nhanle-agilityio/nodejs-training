@@ -1,45 +1,45 @@
 import {
-  BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from './user.entity';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from './create-user.dto';
-import { UpdateUserDto } from './update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { User } from './user.entity';
+import { CreateUserDto } from './create-user.dto';
+import { UpdateUserDto } from './update-user.dto';
 import { UpsertUserDto } from './upsert-user.dto';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
+  private async invalidateUsersCache(): Promise<void> {
+    await this.cache.clear();
+    this.logger.debug('Cache cleared after users mutation');
+  }
+
   async getUsers(): Promise<User[]> {
-    try {
-      const users = await this.usersRepo.find();
-      return users;
-    } catch (err) {
-      throw new BadRequestException((err as Error).message);
-    }
+    return this.usersRepo.find();
   }
 
   async getUserById(id: string): Promise<User> {
-    try {
-      const user = await this.usersRepo.findOne({
-        where: { id },
-      });
-      if (!user) {
-        throw new NotFoundException(`User with id ${id} not found`);
-      }
-      return user;
-    } catch (err) {
-      throw new BadRequestException((err as Error).message);
+    const user = await this.usersRepo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
     }
+    return user;
   }
 
   async createUser(dto: CreateUserDto): Promise<User> {
@@ -51,18 +51,13 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const newUserData = {
+    const newUser = await this.usersRepo.save({
       username: dto.username,
       email: dto.email,
       password: hashedPassword,
-    };
-
-    try {
-      const newUser = await this.usersRepo.save(newUserData);
-      return newUser;
-    } catch (err) {
-      throw new BadRequestException((err as Error).message);
-    }
+    });
+    await this.invalidateUsersCache();
+    return newUser;
   }
 
   async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
@@ -81,51 +76,41 @@ export class UsersService {
     }
 
     Object.assign(existingUser, dto);
-
-    try {
-      const updatedUser = await this.usersRepo.save(existingUser);
-      return updatedUser;
-    } catch (err) {
-      throw new BadRequestException((err as Error).message);
-    }
+    const updatedUser = await this.usersRepo.save(existingUser);
+    await this.invalidateUsersCache();
+    return updatedUser;
   }
 
   async deleteUser(id: string): Promise<void> {
     const result = await this.usersRepo.delete(id);
-
     if (result.affected === 0) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
+    await this.invalidateUsersCache();
   }
 
   async upsertFromClerk(dto: UpsertUserDto): Promise<User> {
     const { clerkId, email, username } = dto;
     const existingUser = await this.usersRepo.findOne({
-      where: [{ clerkId: clerkId }, { email: email }],
+      where: [{ clerkId }, { email }],
     });
 
     if (existingUser) {
       existingUser.clerkId = clerkId;
       existingUser.email = email;
       existingUser.username = username || existingUser.username;
-      try {
-        const updatedUser = await this.usersRepo.save(existingUser);
-        return updatedUser;
-      } catch (err) {
-        throw new BadRequestException((err as Error).message);
-      }
+      const updatedUser = await this.usersRepo.save(existingUser);
+      await this.invalidateUsersCache();
+      return updatedUser;
     }
 
-    try {
-      const user = await this.usersRepo.save({
-        clerkId: clerkId,
-        email: email,
-        username: username,
-        password: null,
-      });
-      return user;
-    } catch (err) {
-      throw new BadRequestException((err as Error).message);
-    }
+    const user = await this.usersRepo.save({
+      clerkId,
+      email,
+      username,
+      password: null,
+    });
+    await this.invalidateUsersCache();
+    return user;
   }
 }
