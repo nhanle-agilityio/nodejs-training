@@ -9,7 +9,9 @@ import {
   Patch,
   ParseUUIDPipe,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { Product } from '../product.entity';
 import { ProductsV1Service } from './products-v1.service';
 import { CreateProductDto } from './create-product-v1.dto';
@@ -28,12 +30,14 @@ import {
 
 @Controller({ path: 'products', version: '1' })
 @ApiTags('products v1')
+@UseInterceptors(CacheInterceptor)
 export class ProductsV1Controller {
   constructor(private readonly productsService: ProductsV1Service) {}
 
   @Public()
   @Get()
-  @ApiOperation({ summary: 'Get all products' })
+  @CacheTTL(30_000)
+  @ApiOperation({ summary: 'Get all products (cached ~30s)' })
   @ApiQuery({
     name: 'searchTerm',
     required: false,
@@ -49,7 +53,8 @@ export class ProductsV1Controller {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get one product' })
+  @CacheTTL(120_000) // 2 minutes — single item rarely changes
+  @ApiOperation({ summary: 'Get one product (cached ~2m)' })
   @ApiBearerAuth('clerk-jwt')
   @ApiResponse({ status: 200, description: 'Product returned', type: Product })
   getProductDetails(@Param('id', ParseUUIDPipe) id: string): Promise<Product> {
@@ -59,7 +64,7 @@ export class ProductsV1Controller {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Create product' })
+  @ApiOperation({ summary: 'Create product (invalidates list cache)' })
   @ApiBearerAuth('clerk-jwt')
   @ApiResponse({ status: 201, description: 'Product created', type: Product })
   createProduct(@Body() dto: CreateProductDto): Promise<Product> {
@@ -69,7 +74,7 @@ export class ProductsV1Controller {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Update product' })
+  @ApiOperation({ summary: 'Update product (invalidates list + item cache)' })
   @ApiBearerAuth('clerk-jwt')
   @ApiResponse({ status: 200, description: 'Product updated', type: Product })
   updateProduct(
@@ -82,7 +87,7 @@ export class ProductsV1Controller {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Delete product' })
+  @ApiOperation({ summary: 'Delete product (invalidates list + item cache)' })
   @ApiBearerAuth('clerk-jwt')
   @ApiResponse({ status: 200, description: 'Product deleted' })
   deleteProduct(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

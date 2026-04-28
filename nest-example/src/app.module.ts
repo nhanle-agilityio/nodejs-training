@@ -1,4 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -33,6 +34,11 @@ import { ProductsV1Module } from './products/v1/products-v1.module';
         autoLoadEntities: true,
         synchronize: false,
       }),
+    }),
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 60 * 1000, // 60 seconds
+      max: 1000,
     }),
     AuthModule,
     ProductsV1Module,

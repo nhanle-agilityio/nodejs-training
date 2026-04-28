@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Product } from '../product.entity';
 import { CreateProductDto } from './create-product-v1.dto';
 import { UpdateProductDto } from './update-product-v1.dto';
@@ -7,9 +9,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class ProductsV1Service {
+  private readonly logger = new Logger(ProductsV1Service.name);
+  private async invalidateProductsCache(): Promise<void> {
+    await this.cache.clear();
+    this.logger.debug('Cache cleared after products mutation');
+  }
+
   constructor(
     @InjectRepository(Product)
     private readonly productsRepo: Repository<Product>,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async getProducts(searchTerm: string): Promise<Product[]> {
@@ -35,7 +44,9 @@ export class ProductsV1Service {
       price: dto.price,
       description: dto.description,
     });
-    return this.productsRepo.save(product);
+    const saved = await this.productsRepo.save(product);
+    await this.invalidateProductsCache();
+    return saved;
   }
 
   async updateProduct(id: string, dto: UpdateProductDto): Promise<Product> {
@@ -46,7 +57,9 @@ export class ProductsV1Service {
     }
 
     Object.assign(product, dto);
-    return this.productsRepo.save(product);
+    const saved = await this.productsRepo.save(product);
+    await this.invalidateProductsCache();
+    return saved;
   }
 
   async deleteProduct(id: string): Promise<void> {
@@ -54,5 +67,6 @@ export class ProductsV1Service {
     if (result.affected === 0) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
+    await this.invalidateProductsCache();
   }
 }
