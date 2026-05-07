@@ -5,6 +5,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 
@@ -36,8 +37,8 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt?: Date | null;
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt: Date | null;
 
   @OneToMany(() => Booking, (b) => b.user)
   bookings: Booking[];

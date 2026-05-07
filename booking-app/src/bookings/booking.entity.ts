@@ -7,6 +7,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Slot } from '../slots/slot.entity';
@@ -59,8 +60,8 @@ export class Booking {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt?: Date | null;
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt: Date | null;
 
   @ManyToOne(() => User, (u) => u.bookings)
   @JoinColumn({ name: 'user_id' })
