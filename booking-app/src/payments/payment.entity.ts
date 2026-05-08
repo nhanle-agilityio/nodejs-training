@@ -22,7 +22,12 @@ export class Payment {
   @Column({ name: 'booking_id', type: 'uuid' })
   bookingId: string;
 
-  @Column({ name: 'stripe_event_id', unique: true })
+  @Column({
+    name: 'stripe_event_id',
+    type: 'varchar',
+    length: 255,
+    unique: true,
+  })
   stripeEventId: string;
 
   @Column({ name: 'amount', type: 'decimal', precision: 10, scale: 2 })
@@ -31,7 +36,7 @@ export class Payment {
   @Column({ type: 'enum', enum: PaymentStatus })
   status: PaymentStatus;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @ManyToOne(() => Booking, (b) => b.payments)
