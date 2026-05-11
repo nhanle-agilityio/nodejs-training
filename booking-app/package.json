@@ -25,6 +25,7 @@
     "migration:show": "npm run typeorm -- migration:show"
   },
   "dependencies": {
+    "@casl/ability": "^6.8.1",
     "@clerk/backend": "^3.4.5",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
