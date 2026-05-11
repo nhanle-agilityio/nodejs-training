@@ -15,6 +15,7 @@ import { Webhook } from 'svix';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AppConfig } from '../../config/configuration';
 import { UsersService } from '../../users/users.service';
+import type { UserRole } from '../../users/user.entity';
 
 type ClerkEventType = 'user.created' | 'user.updated' | 'user.deleted';
 
@@ -25,6 +26,7 @@ interface ClerkUserData {
   first_name?: string | null;
   last_name?: string | null;
   username?: string | null;
+  public_metadata?: { role?: UserRole };
 }
 
 interface ClerkEvent {
@@ -97,11 +99,13 @@ export class ClerkWebhookController {
           [data.first_name, data.last_name].filter(Boolean).join(' ') ||
           data.username ||
           '';
+        const role = data.public_metadata?.role as UserRole;
 
         await this.users.upsertFromClerk({
           clerkId: data.id,
           email,
           name,
+          role,
         });
         break;
       }
