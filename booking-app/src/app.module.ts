@@ -10,6 +10,7 @@ import { SlotsModule } from './slots/slots.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { loadConfiguration } from './config/configuration';
 import { PaymentsModule } from './payments/payments.module';
+import { CaslModule } from './casl/casl.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PaymentsModule } from './payments/payments.module';
     SlotsModule,
     BookingsModule,
     PaymentsModule,
+    CaslModule,
   ],
   controllers: [AppController],
   providers: [AppService],
