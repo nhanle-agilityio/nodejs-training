@@ -3,7 +3,7 @@ import { ClerkAuthGuard } from './guards/clerk-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { ClerkWebhookController } from './webhooks/clerk-webhook.controller';
 import { UsersModule } from 'src/users/users.module';
-import { RolesGuard } from './guards/roles.guard';
+import { PoliciesGuard } from 'src/casl/policies.guard';
 
 @Module({
   imports: [UsersModule],
@@ -15,7 +15,7 @@ import { RolesGuard } from './guards/roles.guard';
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
+      useClass: PoliciesGuard,
     },
   ],
   controllers: [ClerkWebhookController],
