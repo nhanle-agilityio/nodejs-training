@@ -11,6 +11,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { loadConfiguration } from './config/configuration';
 import { PaymentsModule } from './payments/payments.module';
 import { CaslModule } from './casl/casl.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -20,12 +21,13 @@ import { CaslModule } from './casl/casl.module';
       validationSchema: envValidationSchema,
     }),
     DatabaseModule,
+    RedisModule,
+    CaslModule,
     AuthModule,
     UsersModule,
     SlotsModule,
     BookingsModule,
     PaymentsModule,
-    CaslModule,
   ],
   controllers: [AppController],
   providers: [AppService],
