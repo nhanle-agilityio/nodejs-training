@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Slot } from '../slots/slot.entity';
@@ -20,6 +21,10 @@ export enum BookingStatus {
   Refunded = 'REFUNDED',
 }
 
+@Index('bookings_active_slot_uidx', ['slotId'], {
+  unique: true,
+  where: `"status" IN (${BookingStatus.Pending}, ${BookingStatus.Confirmed})`,
+})
 @Entity('bookings')
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
