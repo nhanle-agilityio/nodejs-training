@@ -29,6 +29,23 @@ export class ClerkAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+    // Test: resolve user via header (no Clerk) - only for testing purposes.
+    if (process.env.NODE_ENV === 'test') {
+      const raw = req.headers['x-test-user-id'];
+      const userId = Array.isArray(raw) ? raw[0] : raw;
+      if (!userId || typeof userId !== 'string') {
+        throw new UnauthorizedException('Missing x-test-user-id header');
+      }
+      const user = await this.users.findById(userId);
+      if (!user) {
+        throw new UnauthorizedException('Test user not found');
+      }
+      req.clerkUser = { userId: user.clerkId, role: user.role };
+      req.user = user;
+      return true;
+    }
+
     const header = req.headers['authorization'];
     const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
     if (!token) throw new UnauthorizedException('Missing bearer token');
