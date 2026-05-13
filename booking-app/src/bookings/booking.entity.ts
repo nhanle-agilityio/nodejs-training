@@ -23,7 +23,7 @@ export enum BookingStatus {
 
 @Index('bookings_active_slot_uidx', ['slotId'], {
   unique: true,
-  where: `"status" IN (${BookingStatus.Pending}, ${BookingStatus.Confirmed})`,
+  where: `"status" IN ('${BookingStatus.Pending}', '${BookingStatus.Confirmed}')`,
 })
 @Entity('bookings')
 export class Booking {
