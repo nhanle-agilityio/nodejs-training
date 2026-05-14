@@ -9,6 +9,7 @@ export interface AppConfig {
   };
   redis: { host: string; port: number };
   clerk: { secretKey: string; publishableKey: string; webhookSecret: string };
+  bullmq: { prefix: string };
 }
 
 export const loadConfiguration = (): AppConfig => ({
@@ -31,5 +32,8 @@ export const loadConfiguration = (): AppConfig => ({
     secretKey: process.env.CLERK_SECRET_KEY ?? '',
     publishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? '',
     webhookSecret: process.env.CLERK_WEBHOOK_SECRET ?? '',
+  },
+  bullmq: {
+    prefix: process.env.BULLMQ_PREFIX ?? 'booking',
   },
 });

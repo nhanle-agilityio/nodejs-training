@@ -15,4 +15,5 @@ export const envValidationSchema = Joi.object({
   CLERK_SECRET_KEY: Joi.string().required(),
   CLERK_PUBLISHABLE_KEY: Joi.string().required(),
   CLERK_WEBHOOK_SECRET: Joi.string().required(),
+  BULLMQ_PREFIX: Joi.string().required(),
 });
