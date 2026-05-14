@@ -10,6 +10,7 @@ import { loadConfiguration } from './config/configuration';
 import { PaymentsModule } from './payments/payments.module';
 import { CaslModule } from './casl/casl.module';
 import { RedisModule } from './redis/redis.module';
+import { EmailQueueModule } from './email-queue/email-queue.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RedisModule } from './redis/redis.module';
     }),
     DatabaseModule,
     RedisModule,
+    EmailQueueModule,
     CaslModule,
     AuthModule,
     UsersModule,
