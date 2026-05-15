@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { envValidationSchema } from './config/validation';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
@@ -11,6 +12,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { CaslModule } from './casl/casl.module';
 import { RedisModule } from './redis/redis.module';
 import { EmailQueueModule } from './email-queue/email-queue.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -19,6 +21,7 @@ import { EmailQueueModule } from './email-queue/email-queue.module';
       load: [loadConfiguration],
       validationSchema: envValidationSchema,
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     RedisModule,
     EmailQueueModule,
@@ -28,6 +31,7 @@ import { EmailQueueModule } from './email-queue/email-queue.module';
     SlotsModule,
     BookingsModule,
     PaymentsModule,
+    MailModule,
   ],
 })
 export class AppModule {}

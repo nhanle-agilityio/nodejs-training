@@ -16,4 +16,11 @@ export const envValidationSchema = Joi.object({
   CLERK_PUBLISHABLE_KEY: Joi.string().required(),
   CLERK_WEBHOOK_SECRET: Joi.string().required(),
   BULLMQ_PREFIX: Joi.string().required(),
+  MAIL_MODE: Joi.string().valid('live', 'noop').default('live'),
+  MAIL_FROM: Joi.string().required(),
+  RESEND_API_KEY: Joi.string().when('MAIL_MODE', {
+    is: 'noop',
+    then: Joi.string().allow('').optional(),
+    otherwise: Joi.string().required(),
+  }),
 });

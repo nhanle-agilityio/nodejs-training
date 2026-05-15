@@ -1,3 +1,11 @@
+export type MailDeliveryMode = 'live' | 'noop';
+
+export interface MailConfig {
+  mode: MailDeliveryMode;
+  from: string;
+  resendApiKey: string;
+}
+
 export interface AppConfig {
   app: { env: string; port: number };
   database: {
@@ -10,6 +18,7 @@ export interface AppConfig {
   redis: { host: string; port: number };
   clerk: { secretKey: string; publishableKey: string; webhookSecret: string };
   bullmq: { prefix: string };
+  mail: MailConfig;
 }
 
 export const loadConfiguration = (): AppConfig => ({
@@ -35,5 +44,10 @@ export const loadConfiguration = (): AppConfig => ({
   },
   bullmq: {
     prefix: process.env.BULLMQ_PREFIX ?? 'booking',
+  },
+  mail: {
+    mode: process.env.MAIL_MODE === 'noop' ? 'noop' : 'live',
+    from: process.env.MAIL_FROM ?? 'onboarding@resend.dev',
+    resendApiKey: process.env.RESEND_API_KEY ?? '',
   },
 });
