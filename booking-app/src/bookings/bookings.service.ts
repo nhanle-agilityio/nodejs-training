@@ -12,6 +12,15 @@ import Redlock from 'redlock';
 import { Booking, BookingStatus } from './booking.entity';
 import { Slot, SlotStatus } from '../slots/slot.entity';
 import { REDLOCK } from '../redis/redis.module';
+import { toBookingEmailJobData } from 'src/email-queue/email-job-payload.util';
+import { BookingEmailJobData } from 'src/email-queue/email-jobs.types';
+import {
+  JOB_BOOKING_CANCELLED,
+  JOB_BOOKING_CONFIRMATION,
+  QUEUE_EMAIL,
+} from 'src/email-queue/queue.constants';
+import { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
 
 @Injectable()
 export class BookingsService {
@@ -23,6 +32,8 @@ export class BookingsService {
     private readonly dataSource: DataSource,
     @Inject(REDLOCK)
     private readonly redlock: Redlock,
+    @InjectQueue(QUEUE_EMAIL)
+    private readonly emailQueue: Queue<BookingEmailJobData, any, string>,
   ) {}
 
   async createBooking(userId: string, slotId: string): Promise<Booking> {
@@ -38,7 +49,7 @@ export class BookingsService {
     }
 
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const saved = await this.dataSource.transaction(async (manager) => {
         // Lock the slot row to prevent concurrent bookings
         const slot = await manager
           .createQueryBuilder(Slot, 'slot')
@@ -74,6 +85,26 @@ export class BookingsService {
 
         return manager.save(booking);
       });
+
+      const bookingRow = await this.bookings.findOne({
+        where: { id: saved.id },
+        relations: ['user', 'slot'],
+      });
+
+      if (bookingRow?.user?.email && bookingRow.slot) {
+        await this.emailQueue.add(
+          JOB_BOOKING_CONFIRMATION,
+          toBookingEmailJobData(bookingRow),
+          {
+            jobId: `booking-confirmation-${bookingRow.id}`,
+            removeOnComplete: true,
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 30_000 },
+          },
+        );
+      }
+
+      return saved;
     } finally {
       await lock.release().catch((err: Error) => {
         this.logger.warn(
@@ -140,6 +171,26 @@ export class BookingsService {
     }
 
     booking.status = BookingStatus.Cancelled;
-    return this.bookings.save(booking);
+    const bookingRow = await this.bookings.save(booking);
+
+    const bookingForCancelEmail = await this.bookings.findOne({
+      where: { id: bookingRow.id },
+      relations: ['user', 'slot'],
+    });
+
+    if (bookingForCancelEmail?.user?.email && bookingForCancelEmail.slot) {
+      await this.emailQueue.add(
+        JOB_BOOKING_CANCELLED,
+        toBookingEmailJobData(bookingForCancelEmail),
+        {
+          jobId: `booking-cancelled-${bookingForCancelEmail.id}`,
+          removeOnComplete: true,
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 30_000 },
+        },
+      );
+    }
+
+    return bookingRow;
   }
 }
