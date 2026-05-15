@@ -68,6 +68,13 @@ export class Booking {
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz' })
   deletedAt: Date | null;
 
+  @Column({
+    name: 'reminder_sent_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  reminderSentAt: Date | null;
+
   @ManyToOne(() => User, (u) => u.bookings)
   @JoinColumn({ name: 'user_id' })
   user: User;
