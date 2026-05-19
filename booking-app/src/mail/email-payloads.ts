@@ -1,6 +1,8 @@
-import type { BookingEmailJobData } from '../email-queue/email-jobs.types';
+import type {
+  BookingCancelledEmailJobData,
+  BookingEmailJobData,
+} from '../email-queue/email-jobs.types';
 
 export type BookingConfirmationEmailInput = BookingEmailJobData;
 export type BookingReminderEmailInput = BookingEmailJobData;
-export type BookingExpiredEmailInput = BookingEmailJobData;
-export type BookingCancelledEmailInput = BookingEmailJobData;
+export type BookingCancelledEmailInput = BookingCancelledEmailJobData;

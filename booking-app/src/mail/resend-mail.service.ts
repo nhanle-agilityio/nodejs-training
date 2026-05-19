@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import { cancellationReasonMessage } from '../bookings/booking-cancellation-message.util';
 import type { AppConfig } from '../config/configuration';
 import type {
   BookingCancelledEmailInput,
   BookingConfirmationEmailInput,
-  BookingExpiredEmailInput,
   BookingReminderEmailInput,
 } from './email-payloads';
 
@@ -43,20 +43,12 @@ export class ResendMailService {
   }
 
   async sendBookingCancelled(input: BookingCancelledEmailInput): Promise<void> {
+    const reasonText = cancellationReasonMessage(input.cancellationReason);
     await this.sendEmail(
       input.to,
       `Booking cancelled — ${input.slotTitle}`,
-      this.renderCancelledHtml(input),
+      this.renderCancelledHtml(input, reasonText),
       `cancelled booking=${input.bookingId}`,
-    );
-  }
-
-  async sendBookingExpired(input: BookingExpiredEmailInput): Promise<void> {
-    await this.sendEmail(
-      input.to,
-      `Booking expired — ${input.slotTitle}`,
-      this.renderExpiredHtml(input),
-      `expired booking=${input.bookingId}`,
     );
   }
 
@@ -108,21 +100,17 @@ export class ResendMailService {
     `.trim();
   }
 
-  private renderCancelledHtml(input: BookingCancelledEmailInput): string {
-    const name = escapeHtml(input.recipientName ?? 'there');
-    return `
-      <p>Hi ${name},</p>
-      <p>Your booking <strong>${escapeHtml(input.bookingId)}</strong> has been cancelled.</p>
-    `.trim();
-  }
-
-  private renderExpiredHtml(input: BookingExpiredEmailInput): string {
+  private renderCancelledHtml(
+    input: BookingCancelledEmailInput,
+    reasonText: string,
+  ): string {
     const name = escapeHtml(input.recipientName ?? 'there');
     return `
       <p>Hi ${name},</p>
       <p>Your booking <strong>${escapeHtml(input.bookingId)}</strong> for
-      <strong>${escapeHtml(input.slotTitle)}</strong> has expired because payment was not received in time.</p>
-      <p>You may create a new booking if the slot is still available.</p>
+      <strong>${escapeHtml(input.slotTitle)}</strong> has been cancelled.</p>
+      <p>${escapeHtml(reasonText)}</p>
+      <p>${escapeHtml(input.slotStartIso)} — ${escapeHtml(input.slotEndIso)}</p>
     `.trim();
   }
 }
