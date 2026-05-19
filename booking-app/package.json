@@ -26,6 +26,9 @@
     "migration:show": "npm run typeorm -- migration:show"
   },
   "dependencies": {
+    "@bull-board/api": "^7.1.5",
+    "@bull-board/express": "^7.1.5",
+    "@bull-board/nestjs": "^7.1.5",
     "@casl/ability": "^6.8.1",
     "@clerk/backend": "^3.4.5",
     "@nestjs/bullmq": "^11.0.4",
