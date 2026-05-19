@@ -1,8 +1,9 @@
 import { Global, Module, OnModuleDestroy, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import Redlock from 'redlock';
 import type { AppConfig } from '../config/configuration';
+import { createAppRedisClient } from './redis.config';
 
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const REDLOCK = Symbol('REDLOCK');
@@ -21,8 +22,8 @@ const redlockSettings = {
       provide: REDIS_CLIENT,
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig, true>) => {
-        const { host, port } = config.get('redis', { infer: true });
-        return new Redis({ host, port });
+        const redis = config.get('redis', { infer: true });
+        return createAppRedisClient(redis);
       },
     },
     {
