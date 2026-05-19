@@ -1,19 +1,13 @@
-import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { Queue } from 'bullmq';
 import { CronJob } from 'cron';
 import { DataSource } from 'typeorm';
-import { toBookingEmailJobData } from 'src/email-queue/email-job-payload.util';
-import type { BookingEmailJobData } from 'src/email-queue/email-jobs.types';
-import {
-  JOB_BOOKING_EXPIRED,
-  QUEUE_EMAIL,
-} from 'src/email-queue/queue.constants';
 import { Booking, BookingStatus } from './booking.entity';
 import { Payment, PaymentStatus } from '../payments/payment.entity';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from './booking-expiry.constants';
+import { BookingCancellationReason } from './booking-cancellation-reason';
+import { BookingLifecycleService } from './booking-lifecycle.service';
 
 @Injectable()
 export class PendingBookingExpiryScheduler implements OnModuleInit {
@@ -23,8 +17,7 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
     private readonly schedulerRegistry: SchedulerRegistry,
     @InjectDataSource()
     private readonly dataSource: DataSource,
-    @InjectQueue(QUEUE_EMAIL)
-    private readonly emailQueue: Queue<BookingEmailJobData, unknown, string>,
+    private readonly lifecycle: BookingLifecycleService,
   ) {}
 
   onModuleInit() {
@@ -61,8 +54,11 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
       .getRawMany<{ id: string }>();
 
     const ids = raw.map((r) => r.id);
+    let expiredCount = 0;
 
     for (const id of ids) {
+      let didExpire = false;
+
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
           .createQueryBuilder(Booking, 'b')
@@ -84,24 +80,30 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
 
         booking.status = BookingStatus.Cancelled;
         await manager.save(booking);
-
-        const full = await manager.findOne(Booking, {
-          where: { id },
-          relations: ['user', 'slot'],
-        });
-        if (full?.user?.email && full.slot) {
-          await this.emailQueue.add(
-            JOB_BOOKING_EXPIRED,
-            toBookingEmailJobData(full),
-            { jobId: `expired-${id}` },
-          );
-        }
+        didExpire = true;
       });
+
+      if (!didExpire) {
+        continue;
+      }
+
+      expiredCount += 1;
+
+      const full = await this.dataSource.getRepository(Booking).findOne({
+        where: { id },
+        relations: ['user', 'slot'],
+      });
+      if (full) {
+        await this.lifecycle.onBookingCancelled(
+          full,
+          BookingCancellationReason.PaymentTimeout,
+        );
+      }
     }
 
-    if (ids.length) {
+    if (expiredCount > 0) {
       this.logger.log(
-        `Pending booking expiry processed ${ids.length} candidate(s)`,
+        `Pending booking expiry cancelled ${expiredCount} booking(s)`,
       );
     }
   }
