@@ -12,6 +12,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { CaslModule } from './casl/casl.module';
 import { RedisModule } from './redis/redis.module';
 import { EmailQueueModule } from './email-queue/email-queue.module';
+import { bullBoardRootModule } from './email-queue/bull-board.setup';
 import { MailModule } from './mail/mail.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { MailModule } from './mail/mail.module';
     DatabaseModule,
     RedisModule,
     EmailQueueModule,
+    bullBoardRootModule(),
     CaslModule,
     AuthModule,
     UsersModule,
