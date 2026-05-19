@@ -4,7 +4,8 @@ export const BOOKING_REMINDER = {
   // Master switch for the daily scan cron
   enabled: true,
   // Cron expression for the DB scan (here: 06:00 daily in `timezone`)
-  cronExpression: '0 0 6 * * *',
+  // cronExpression: '0 0 6 * * *',
+  cronExpression: '0 * * * * *',
   timezone: 'UTC',
   // Hours before slot start when the reminder should fire
   leadHours: 24,

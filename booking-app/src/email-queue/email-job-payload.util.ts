@@ -1,10 +1,10 @@
 import type { BookingEmailJobData } from './email-jobs.types';
 
-export function toBookingEmailJobData(booking: {
+export const toBookingEmailJobData = (booking: {
   id: string;
   user: { email: string; name: string | null };
   slot: { title: string; startTime: Date; endTime: Date };
-}): BookingEmailJobData {
+}): BookingEmailJobData => {
   return {
     to: booking.user.email,
     recipientName: booking.user.name,
@@ -13,4 +13,4 @@ export function toBookingEmailJobData(booking: {
     slotStartIso: booking.slot.startTime.toISOString(),
     slotEndIso: booking.slot.endTime.toISOString(),
   };
-}
+};

@@ -97,7 +97,6 @@ export class BookingsService {
           toBookingEmailJobData(bookingRow),
           {
             jobId: `booking-confirmation-${bookingRow.id}`,
-            removeOnComplete: true,
             attempts: 5,
             backoff: { type: 'exponential', delay: 30_000 },
           },
@@ -184,7 +183,6 @@ export class BookingsService {
         toBookingEmailJobData(bookingForCancelEmail),
         {
           jobId: `booking-cancelled-${bookingForCancelEmail.id}`,
-          removeOnComplete: true,
           attempts: 5,
           backoff: { type: 'exponential', delay: 30_000 },
         },

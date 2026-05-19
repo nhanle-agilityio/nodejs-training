@@ -93,7 +93,11 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
           await this.emailQueue.add(
             JOB_BOOKING_EXPIRED,
             toBookingEmailJobData(full),
-            { jobId: `expired-${id}` },
+            {
+              jobId: `expired-${id}`,
+              attempts: 5,
+              backoff: { type: 'exponential', delay: 30_000 },
+            },
           );
         }
       });

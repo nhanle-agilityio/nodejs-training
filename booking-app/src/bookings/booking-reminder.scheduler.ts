@@ -95,11 +95,12 @@ export class BookingReminderScheduler implements OnModuleInit {
       const delayMs = reminderDelayMs(slotStart, now);
       const payload = toBookingEmailJobData(booking);
 
+      console.log('Delay: ------------->', delayMs);
+
       try {
         await this.emailQueue.add(JOB_BOOKING_REMINDER, payload, {
           jobId: `reminder-${booking.id}`,
           delay: delayMs,
-          removeOnComplete: true,
           attempts: 5,
           backoff: { type: 'exponential', delay: 30_000 },
         });

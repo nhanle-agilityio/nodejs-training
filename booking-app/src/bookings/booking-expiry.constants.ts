@@ -4,5 +4,5 @@ export const BOOKING_PAYMENT_PENDING_EXPIRY = {
   cronExpression: '0 * * * * *',
   timezone: 'UTC',
   // Minutes after createdAt before we auto-cancel
-  pendingTtlMinutes: 2,
+  pendingTtlMinutes: 15,
 };

@@ -3,9 +3,15 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import {
+  JOB_BOOKING_CANCELLED,
+  JOB_BOOKING_CONFIRMATION,
+  QUEUE_EMAIL,
+} from 'src/email-queue/queue.constants';
 import { Booking, BookingStatus } from './booking.entity';
 import { BookingsService } from './bookings.service';
 import { REDLOCK } from '../redis/redis.module';
@@ -18,6 +24,7 @@ describe('BookingsService', () => {
   >;
   let dataSource: { transaction: jest.Mock };
   let redlock: { acquire: jest.Mock };
+  let emailQueue: { add: jest.Mock };
 
   const bookingId = 'b1111111-1111-1111-1111-111111111111';
   const userId = 'u1111111-1111-1111-1111-111111111111';
@@ -35,9 +42,18 @@ describe('BookingsService', () => {
     id: slotId,
     status: SlotStatus.Open,
     title: 'Slot Title 1',
-    startTime: new Date(),
-    endTime: new Date(),
+    startTime: new Date('2026-01-02T10:00:00.000Z'),
+    endTime: new Date('2026-01-02T11:00:00.000Z'),
   } as Slot;
+
+  const bookingRowForEmail = {
+    ...pendingBooking,
+    user: { email: 'user@test.com', name: 'Test User' },
+    slot: openSlot,
+  } as Booking & {
+    user: { email: string; name: string };
+    slot: Slot;
+  };
 
   const lock = { release: jest.fn().mockResolvedValue(undefined) };
 
@@ -53,6 +69,7 @@ describe('BookingsService', () => {
     redlock = {
       acquire: jest.fn().mockResolvedValue(lock),
     };
+    emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +77,7 @@ describe('BookingsService', () => {
         { provide: getRepositoryToken(Booking), useValue: bookingsRepo },
         { provide: DataSource, useValue: dataSource },
         { provide: REDLOCK, useValue: redlock },
+        { provide: getQueueToken(QUEUE_EMAIL), useValue: emailQueue },
       ],
     }).compile();
 
@@ -159,6 +177,52 @@ describe('BookingsService', () => {
       });
       expect(result.status).toBe(BookingStatus.Pending);
       expect(lock.release).toHaveBeenCalled();
+    });
+
+    it('enqueues confirmation email when user email and slot are present', async () => {
+      mockTransactionManager({});
+      bookingsRepo.findOne.mockResolvedValue({
+        ...bookingRowForEmail,
+        id: 'new-bid',
+      });
+
+      await service.createBooking(userId, slotId);
+
+      expect(bookingsRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'new-bid' },
+        relations: ['user', 'slot'],
+      });
+      expect(emailQueue.add).toHaveBeenCalledWith(
+        JOB_BOOKING_CONFIRMATION,
+        {
+          to: 'user@test.com',
+          recipientName: 'Test User',
+          bookingId: 'new-bid',
+          slotTitle: 'Slot Title 1',
+          slotStartIso: openSlot.startTime.toISOString(),
+          slotEndIso: openSlot.endTime.toISOString(),
+        },
+        {
+          jobId: 'booking-confirmation-new-bid',
+          // removeOnComplete: true,
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 30_000 },
+        },
+      );
+    });
+
+    it('does not enqueue confirmation when user has no email', async () => {
+      mockTransactionManager({});
+      bookingsRepo.findOne.mockResolvedValue({
+        ...pendingBooking,
+        id: 'new-bid',
+        user: { email: '', name: 'X' },
+        slot: openSlot,
+      } as Booking);
+
+      await service.createBooking(userId, slotId);
+
+      expect(emailQueue.add).not.toHaveBeenCalled();
     });
   });
 
@@ -273,10 +337,12 @@ describe('BookingsService', () => {
     });
 
     it('allows admin to cancel another user PENDING booking', async () => {
-      bookingsRepo.findOne.mockResolvedValue({
-        ...pendingBooking,
-        userId: otherUserId,
-      });
+      bookingsRepo.findOne
+        .mockResolvedValueOnce({
+          ...pendingBooking,
+          userId: otherUserId,
+        })
+        .mockResolvedValueOnce(bookingRowForEmail);
       bookingsRepo.save.mockImplementation((b) =>
         Promise.resolve(b as Booking),
       );
@@ -285,10 +351,29 @@ describe('BookingsService', () => {
 
       expect(result.status).toBe(BookingStatus.Cancelled);
       expect(bookingsRepo.save).toHaveBeenCalled();
+      expect(emailQueue.add).toHaveBeenCalledWith(
+        JOB_BOOKING_CANCELLED,
+        {
+          to: 'user@test.com',
+          recipientName: 'Test User',
+          bookingId,
+          slotTitle: 'Slot Title 1',
+          slotStartIso: openSlot.startTime.toISOString(),
+          slotEndIso: openSlot.endTime.toISOString(),
+        },
+        {
+          jobId: `booking-cancelled-${bookingId}`,
+          // removeOnComplete: true,
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 30_000 },
+        },
+      );
     });
 
     it('allows owner to cancel own PENDING booking', async () => {
-      bookingsRepo.findOne.mockResolvedValue({ ...pendingBooking });
+      bookingsRepo.findOne
+        .mockResolvedValueOnce({ ...pendingBooking })
+        .mockResolvedValueOnce(bookingRowForEmail);
       bookingsRepo.save.mockImplementation((b) =>
         Promise.resolve(b as Booking),
       );
@@ -296,6 +381,24 @@ describe('BookingsService', () => {
       const result = await service.cancelBooking(bookingId, userId, false);
 
       expect(result.status).toBe(BookingStatus.Cancelled);
+      expect(emailQueue.add).toHaveBeenCalled();
+    });
+
+    it('does not enqueue cancel email when reload lacks user email', async () => {
+      bookingsRepo.findOne
+        .mockResolvedValueOnce({ ...pendingBooking })
+        .mockResolvedValueOnce({
+          ...pendingBooking,
+          user: { email: '', name: 'X' },
+          slot: openSlot,
+        } as Booking);
+      bookingsRepo.save.mockImplementation((b) =>
+        Promise.resolve(b as Booking),
+      );
+
+      await service.cancelBooking(bookingId, userId, false);
+
+      expect(emailQueue.add).not.toHaveBeenCalled();
     });
   });
 });

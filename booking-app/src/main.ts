@@ -6,12 +6,15 @@ import { AppConfig } from './config/configuration';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { BULL_BOARD_PREFIX_EXCLUSIONS } from './email-queue/bull-board.constants';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.setGlobalPrefix('api', { exclude: ['webhooks/(.*)'] });
+  app.setGlobalPrefix('api', {
+    exclude: ['webhooks/(.*)', ...BULL_BOARD_PREFIX_EXCLUSIONS],
+  });
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
@@ -34,4 +37,4 @@ async function bootstrap() {
 
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();
