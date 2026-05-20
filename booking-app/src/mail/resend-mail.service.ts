@@ -1,13 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
-import { cancellationReasonMessage } from '../bookings/booking-cancellation-message.util';
 import type { AppConfig } from '../config/configuration';
-import type {
-  BookingCancelledEmailInput,
-  BookingConfirmationEmailInput,
-  BookingReminderEmailInput,
-} from './email-payloads';
 
 @Injectable()
 export class ResendMailService {
@@ -22,103 +16,30 @@ export class ResendMailService {
         : null;
   }
 
-  async sendBookingConfirmation(
-    input: BookingConfirmationEmailInput,
-  ): Promise<void> {
-    await this.sendEmail(
-      input.to,
-      `Booking confirmed — ${input.slotTitle}`,
-      this.renderConfirmationHtml(input),
-      `confirmation booking=${input.bookingId}`,
-    );
-  }
-
-  async sendBookingReminder(input: BookingReminderEmailInput): Promise<void> {
-    await this.sendEmail(
-      input.to,
-      `Reminder: ${input.slotTitle}`,
-      this.renderReminderHtml(input),
-      `reminder booking=${input.bookingId}`,
-    );
-  }
-
-  async sendBookingCancelled(input: BookingCancelledEmailInput): Promise<void> {
-    const reasonText = cancellationReasonMessage(input.cancellationReason);
-    await this.sendEmail(
-      input.to,
-      `Booking cancelled — ${input.slotTitle}`,
-      this.renderCancelledHtml(input, reasonText),
-      `cancelled booking=${input.bookingId}`,
-    );
-  }
-
-  private async sendEmail(
+  async sendEmail(
     to: string,
     subject: string,
     html: string,
-    logContext: string,
+    logContext?: string,
   ): Promise<void> {
-    const mail = this.config.get('mail', { infer: true });
+    const mailConfig = this.config.get('mail', { infer: true });
+    const context = logContext ?? 'email';
 
-    if (mail.mode === 'noop' || !this.resend) {
-      this.logger.debug(`[noop] ${logContext} to=${to}`);
+    if (mailConfig.mode === 'noop' || !this.resend) {
+      this.logger.debug(`[noop] ${context} to=${to}`);
       return;
     }
 
     const { error } = await this.resend.emails.send({
-      from: mail.from,
+      from: mailConfig.from,
       to,
       subject,
       html,
     });
 
     if (error) {
-      this.logger.error(
-        `Resend ${logContext} failed: ${JSON.stringify(error)}`,
-      );
+      this.logger.error(`Resend ${context} failed: ${JSON.stringify(error)}`);
       throw new Error(error.message ?? 'Resend send failed');
     }
   }
-
-  private renderConfirmationHtml(input: BookingConfirmationEmailInput): string {
-    const name = escapeHtml(input.recipientName ?? 'there');
-    return `
-      <p>Hi ${name},</p>
-      <p>Your booking <strong>${escapeHtml(input.bookingId)}</strong> is confirmed for
-      <strong>${escapeHtml(input.slotTitle)}</strong>.</p>
-      <p>${escapeHtml(input.slotStartIso)} — ${escapeHtml(input.slotEndIso)}</p>
-    `.trim();
-  }
-
-  private renderReminderHtml(input: BookingReminderEmailInput): string {
-    const name = escapeHtml(input.recipientName ?? 'there');
-    return `
-      <p>Hi ${name},</p>
-      <p>Reminder: <strong>${escapeHtml(input.slotTitle)}</strong> starts at
-      ${escapeHtml(input.slotStartIso)}.</p>
-      <p>Booking ref: ${escapeHtml(input.bookingId)}</p>
-    `.trim();
-  }
-
-  private renderCancelledHtml(
-    input: BookingCancelledEmailInput,
-    reasonText: string,
-  ): string {
-    const name = escapeHtml(input.recipientName ?? 'there');
-    return `
-      <p>Hi ${name},</p>
-      <p>Your booking <strong>${escapeHtml(input.bookingId)}</strong> for
-      <strong>${escapeHtml(input.slotTitle)}</strong> has been cancelled.</p>
-      <p>${escapeHtml(reasonText)}</p>
-      <p>${escapeHtml(input.slotStartIso)} — ${escapeHtml(input.slotEndIso)}</p>
-    `.trim();
-  }
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
