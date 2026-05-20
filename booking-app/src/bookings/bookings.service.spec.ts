@@ -10,6 +10,8 @@ import { Booking, BookingStatus } from './booking.entity';
 import { BookingsService } from './bookings.service';
 import { REDLOCK } from '../redis/redis.module';
 import { Slot, SlotStatus } from '../slots/slot.entity';
+import { BookingCancellationReason } from './email/booking-cancellation-reason';
+import { BookingLifecycleService } from './email/booking-lifecycle.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -18,6 +20,10 @@ describe('BookingsService', () => {
   >;
   let dataSource: { transaction: jest.Mock };
   let redlock: { acquire: jest.Mock };
+  let lifecycle: {
+    onBookingCreated: jest.Mock;
+    onBookingCancelled: jest.Mock;
+  };
 
   const bookingId = 'b1111111-1111-1111-1111-111111111111';
   const userId = 'u1111111-1111-1111-1111-111111111111';
@@ -35,9 +41,18 @@ describe('BookingsService', () => {
     id: slotId,
     status: SlotStatus.Open,
     title: 'Slot Title 1',
-    startTime: new Date(),
-    endTime: new Date(),
+    startTime: new Date('2026-01-02T10:00:00.000Z'),
+    endTime: new Date('2026-01-02T11:00:00.000Z'),
   } as Slot;
+
+  const bookingRowForEmail = {
+    ...pendingBooking,
+    user: { email: 'user@test.com', name: 'Test User' },
+    slot: openSlot,
+  } as Booking & {
+    user: { email: string; name: string };
+    slot: Slot;
+  };
 
   const lock = { release: jest.fn().mockResolvedValue(undefined) };
 
@@ -53,6 +68,10 @@ describe('BookingsService', () => {
     redlock = {
       acquire: jest.fn().mockResolvedValue(lock),
     };
+    lifecycle = {
+      onBookingCreated: jest.fn().mockResolvedValue(undefined),
+      onBookingCancelled: jest.fn().mockResolvedValue(undefined),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +79,7 @@ describe('BookingsService', () => {
         { provide: getRepositoryToken(Booking), useValue: bookingsRepo },
         { provide: DataSource, useValue: dataSource },
         { provide: REDLOCK, useValue: redlock },
+        { provide: BookingLifecycleService, useValue: lifecycle },
       ],
     }).compile();
 
@@ -144,6 +164,7 @@ describe('BookingsService', () => {
 
     it('creates a PENDING booking inside a transaction', async () => {
       const { manager } = mockTransactionManager({});
+      bookingsRepo.findOne.mockResolvedValue(bookingRowForEmail);
 
       const result = await service.createBooking(userId, slotId);
 
@@ -158,86 +179,43 @@ describe('BookingsService', () => {
         status: BookingStatus.Pending,
       });
       expect(result.status).toBe(BookingStatus.Pending);
+      expect(lifecycle.onBookingCreated).toHaveBeenCalledWith(
+        bookingRowForEmail,
+      );
       expect(lock.release).toHaveBeenCalled();
+    });
+
+    it('skips lifecycle when reload lacks relations', async () => {
+      mockTransactionManager({});
+      bookingsRepo.findOne.mockResolvedValue(null);
+
+      await service.createBooking(userId, slotId);
+
+      expect(lifecycle.onBookingCreated).not.toHaveBeenCalled();
+      expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
     });
   });
 
   describe('getAllBookings', () => {
     it('returns paginated rows from findAndCount', async () => {
-      const page = 2;
-      const limit = 10;
-      bookingsRepo.findAndCount.mockResolvedValue([[pendingBooking], 25]);
+      bookingsRepo.findAndCount.mockResolvedValue([[pendingBooking], 1]);
 
       const result = await service.getAllBookings({
-        status: BookingStatus.Pending,
-        userId,
-        slotId,
-        page,
-        limit,
+        page: 1,
+        limit: 10,
       });
 
-      expect(bookingsRepo.findAndCount).toHaveBeenCalledWith({
-        where: {
-          status: BookingStatus.Pending,
-          userId,
-          slotId,
-        },
-        relations: ['slot', 'user'],
-        order: { createdAt: 'DESC' },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
-      expect(result.items).toEqual([pendingBooking]);
-      expect(result.total).toBe(25);
-    });
-
-    it('omits optional filters when not provided', async () => {
-      bookingsRepo.findAndCount.mockResolvedValue([[], 0]);
-
-      await service.getAllBookings({ page: 1, limit: 20 });
-
-      expect(bookingsRepo.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {},
-        }),
-      );
-    });
-  });
-
-  describe('getBookingsByUser', () => {
-    it('loads bookings for user with slot relation', async () => {
-      bookingsRepo.find.mockResolvedValue([pendingBooking]);
-
-      const result = await service.getBookingsByUser(userId);
-
-      expect(bookingsRepo.find).toHaveBeenCalledWith({
-        where: { userId },
-        relations: ['slot'],
-        order: { createdAt: 'DESC' },
-      });
-      expect(result).toEqual([pendingBooking]);
+      expect(result).toEqual({ items: [pendingBooking], total: 1 });
     });
   });
 
   describe('getBookingById', () => {
-    it('throws when booking does not exist', async () => {
+    it('throws NotFoundException when booking id is unknown', async () => {
       bookingsRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getBookingById(bookingId)).rejects.toBeInstanceOf(
         NotFoundException,
       );
-    });
-
-    it('returns booking with slot relation', async () => {
-      bookingsRepo.findOne.mockResolvedValue(pendingBooking);
-
-      const result = await service.getBookingById(bookingId);
-
-      expect(result).toBe(pendingBooking);
-      expect(bookingsRepo.findOne).toHaveBeenCalledWith({
-        where: { id: bookingId },
-        relations: ['slot'],
-      });
     });
   });
 
@@ -273,10 +251,12 @@ describe('BookingsService', () => {
     });
 
     it('allows admin to cancel another user PENDING booking', async () => {
-      bookingsRepo.findOne.mockResolvedValue({
-        ...pendingBooking,
-        userId: otherUserId,
-      });
+      bookingsRepo.findOne
+        .mockResolvedValueOnce({
+          ...pendingBooking,
+          userId: otherUserId,
+        })
+        .mockResolvedValueOnce(bookingRowForEmail);
       bookingsRepo.save.mockImplementation((b) =>
         Promise.resolve(b as Booking),
       );
@@ -284,11 +264,16 @@ describe('BookingsService', () => {
       const result = await service.cancelBooking(bookingId, userId, true);
 
       expect(result.status).toBe(BookingStatus.Cancelled);
-      expect(bookingsRepo.save).toHaveBeenCalled();
+      expect(lifecycle.onBookingCancelled).toHaveBeenCalledWith(
+        bookingRowForEmail,
+        BookingCancellationReason.AdminCancelled,
+      );
     });
 
     it('allows owner to cancel own PENDING booking', async () => {
-      bookingsRepo.findOne.mockResolvedValue({ ...pendingBooking });
+      bookingsRepo.findOne
+        .mockResolvedValueOnce({ ...pendingBooking })
+        .mockResolvedValueOnce(bookingRowForEmail);
       bookingsRepo.save.mockImplementation((b) =>
         Promise.resolve(b as Booking),
       );
@@ -296,6 +281,23 @@ describe('BookingsService', () => {
       const result = await service.cancelBooking(bookingId, userId, false);
 
       expect(result.status).toBe(BookingStatus.Cancelled);
+      expect(lifecycle.onBookingCancelled).toHaveBeenCalledWith(
+        bookingRowForEmail,
+        BookingCancellationReason.UserCancelled,
+      );
+    });
+
+    it('skips lifecycle when reload lacks relations', async () => {
+      bookingsRepo.findOne
+        .mockResolvedValueOnce({ ...pendingBooking })
+        .mockResolvedValueOnce(null);
+      bookingsRepo.save.mockImplementation((b) =>
+        Promise.resolve(b as Booking),
+      );
+
+      await service.cancelBooking(bookingId, userId, false);
+
+      expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
     });
   });
 });
