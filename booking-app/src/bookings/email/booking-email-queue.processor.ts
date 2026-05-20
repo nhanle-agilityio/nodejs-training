@@ -1,17 +1,17 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import type {
-  BookingCancelledEmailJobData,
-  BookingEmailJobData,
-} from '../email-queue/email-jobs.types';
+import { QUEUE_EMAIL } from '../../email-queue/queue.constants';
 import {
   JOB_BOOKING_CANCELLED,
   JOB_BOOKING_CONFIRMED,
   JOB_BOOKING_REMINDER,
-  QUEUE_EMAIL,
-} from '../email-queue/queue.constants';
-import { ResendMailService } from '../mail/resend-mail.service';
+} from './booking-email.constants';
+import type {
+  BookingCancelledEmailJobData,
+  BookingEmailJobData,
+} from './booking-email.types';
+import { BookingMailService } from './booking-mail.service';
 import { BookingReminderSendService } from './booking-reminder-send.service';
 
 type EmailJobPayload = BookingEmailJobData | BookingCancelledEmailJobData;
@@ -21,7 +21,7 @@ export class BookingEmailQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(BookingEmailQueueProcessor.name);
 
   constructor(
-    private readonly mail: ResendMailService,
+    private readonly mail: BookingMailService,
     private readonly reminderSend: BookingReminderSendService,
   ) {
     super();

@@ -1,33 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { BookingEmailJobData } from '../email-queue/email-jobs.types';
-import { ResendMailService } from '../mail/resend-mail.service';
-import { Booking } from './booking.entity';
+import { Booking } from '../booking.entity';
 import { BOOKING_REMINDER } from './booking-reminder.constants';
+import type { BookingEmailJobData } from './booking-email.types';
+import { BookingMailService } from './booking-mail.service';
 
 @Injectable()
 export class BookingReminderSendService {
   constructor(
     @InjectRepository(Booking)
     private readonly bookings: Repository<Booking>,
-    private readonly mail: ResendMailService,
+    private readonly mail: BookingMailService,
   ) {}
-
-  // Claims the reminder slot, sends using enqueued payload.
-  async processReminder(jobData: BookingEmailJobData): Promise<void> {
-    const claimed = await this.claimReminderSend(jobData.bookingId);
-    if (!claimed) {
-      return;
-    }
-
-    try {
-      await this.mail.sendBookingReminder(jobData);
-    } catch (err) {
-      await this.releaseReminderSend(jobData.bookingId);
-      throw err;
-    }
-  }
 
   private async claimReminderSend(bookingId: string): Promise<boolean> {
     const result = await this.bookings
@@ -47,5 +32,20 @@ export class BookingReminderSendService {
 
   private async releaseReminderSend(bookingId: string): Promise<void> {
     await this.bookings.update({ id: bookingId }, { reminderSentAt: null });
+  }
+
+  // Claims the reminder slot, sends using enqueued payload.
+  async processReminder(jobData: BookingEmailJobData): Promise<void> {
+    const claimed = await this.claimReminderSend(jobData.bookingId);
+    if (!claimed) {
+      return;
+    }
+
+    try {
+      await this.mail.sendBookingReminder(jobData);
+    } catch (err) {
+      await this.releaseReminderSend(jobData.bookingId);
+      throw err;
+    }
   }
 }

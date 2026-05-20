@@ -1,32 +1,22 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import {
-  bookingCancelledJobOptions,
-  bookingConfirmedJobOptions,
-} from '../email-queue/email-job-options.util';
-import {
-  toBookingCancelledEmailJobData,
-  toBookingEmailJobData,
-} from '../email-queue/email-job-payload.util';
+import { QUEUE_EMAIL } from '../../email-queue/queue.constants';
+import { BookingCancellationReason } from './booking-cancellation-reason';
 import {
   JOB_BOOKING_CANCELLED,
   JOB_BOOKING_CONFIRMED,
-  QUEUE_EMAIL,
-} from '../email-queue/queue.constants';
-import { Booking } from './booking.entity';
-import { BookingCancellationReason } from './booking-cancellation-reason';
+} from './booking-email.constants';
+import {
+  bookingCancelledJobOptions,
+  bookingConfirmedJobOptions,
+} from './booking-email-job-options.util';
+import {
+  toBookingCancelledEmailJobData,
+  toBookingEmailJobData,
+} from './booking-email-payload.util';
+import type { BookingWithEmailRelations } from './booking-email.types';
 import { BookingReminderQueueService } from './booking-reminder-queue.service';
-
-export type BookingWithEmailRelations = Booking & {
-  user?: { email: string; name: string | null } | null;
-  slot?: {
-    title: string;
-    startTime: Date;
-    endTime: Date;
-    deletedAt?: Date | null;
-  } | null;
-};
 
 @Injectable()
 export class BookingLifecycleService {

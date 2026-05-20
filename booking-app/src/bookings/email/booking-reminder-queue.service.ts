@@ -1,21 +1,19 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { toBookingEmailJobData } from '../email-queue/email-job-payload.util';
-import {
-  bookingReminderJobOptions,
-  emailJobIds,
-} from '../email-queue/email-job-options.util';
-import type { BookingEmailJobData } from '../email-queue/email-jobs.types';
-import {
-  JOB_BOOKING_REMINDER,
-  QUEUE_EMAIL,
-} from '../email-queue/queue.constants';
-import { Booking } from './booking.entity';
+import { QUEUE_EMAIL } from '../../email-queue/queue.constants';
 import {
   isEligibleForReminderBooking,
   reminderDelayMs,
 } from './booking-reminder.utils';
+import type { BookingWithEmailRelations } from './booking-email.types';
+import { JOB_BOOKING_REMINDER } from './booking-email.constants';
+import {
+  bookingEmailJobIds,
+  bookingReminderJobOptions,
+} from './booking-email-job-options.util';
+import { toBookingEmailJobData } from './booking-email-payload.util';
+import type { BookingEmailJobData } from './booking-email.types';
 
 @Injectable()
 export class BookingReminderQueueService {
@@ -23,20 +21,12 @@ export class BookingReminderQueueService {
 
   constructor(
     @InjectQueue(QUEUE_EMAIL)
-    private readonly emailQueue: Queue<BookingEmailJobData, unknown, string>,
+    private readonly emailQueue: Queue<BookingEmailJobData>,
   ) {}
 
   // Schedules or refreshes the delayed reminder job for a booking.
   async upsertReminderJob(
-    booking: Booking & {
-      user?: { email: string; name: string | null } | null;
-      slot?: {
-        title: string;
-        startTime: Date;
-        endTime: Date;
-        deletedAt?: Date | null;
-      } | null;
-    },
+    booking: BookingWithEmailRelations,
   ): Promise<boolean> {
     if (!isEligibleForReminderBooking(booking)) {
       return false;
@@ -46,7 +36,7 @@ export class BookingReminderQueueService {
     const now = new Date();
     const delayMs = reminderDelayMs(slotStart, now);
     const payload = toBookingEmailJobData(booking);
-    const jobId = emailJobIds.bookingReminder(booking.id);
+    const jobId = bookingEmailJobIds.reminder(booking.id);
     const opts = bookingReminderJobOptions(booking.id, delayMs);
 
     try {
@@ -78,9 +68,8 @@ export class BookingReminderQueueService {
   // Removes a scheduled reminder when the booking is cancelled or expires.
   async removeReminderJob(bookingId: string): Promise<void> {
     try {
-      const job = await this.emailQueue.getJob(
-        emailJobIds.bookingReminder(bookingId),
-      );
+      const reminderJobId = bookingEmailJobIds.reminder(bookingId);
+      const job = await this.emailQueue.getJob(reminderJobId);
       if (!job) {
         return;
       }

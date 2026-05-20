@@ -1,4 +1,4 @@
-import { BookingStatus } from './booking.entity';
+import { BookingStatus } from '../booking.entity';
 import { BOOKING_REMINDER } from './booking-reminder.constants';
 
 export type BookingForReminder = {
@@ -6,13 +6,13 @@ export type BookingForReminder = {
   status: BookingStatus;
   reminderSentAt: Date | null;
   deletedAt?: Date | null;
-  user?: { email: string | null; name?: string | null } | null;
+  user?: { email: string | null; name?: string | null };
   slot?: {
     title: string;
     startTime: Date;
     endTime: Date;
     deletedAt?: Date | null;
-  } | null;
+  };
 };
 
 export const hasReminderEmail = (booking: BookingForReminder): boolean =>

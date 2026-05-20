@@ -1,4 +1,4 @@
-import { BookingStatus } from './booking.entity';
+import { BookingStatus } from '../booking.entity';
 
 export const BOOKING_REMINDER = {
   enabled: true,
