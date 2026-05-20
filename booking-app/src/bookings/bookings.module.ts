@@ -1,16 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from './booking.entity';
-import { BookingReminderQueueService } from './booking-reminder-queue.service';
-import { BookingReminderSendService } from './booking-reminder-send.service';
-import { BookingEmailQueueProcessor } from './booking-email-queue.processor';
-import { BookingLifecycleService } from './booking-lifecycle.service';
 import { BookingsService } from './bookings.service';
 import { BookingsController } from './bookings.controller';
 import { UsersModule } from '../users/users.module';
 import { EmailQueueModule } from '../email-queue/email-queue.module';
 import { MailModule } from '../mail/mail.module';
-import { PendingBookingExpiryScheduler } from './booking-expiry.scheduler';
+import { PendingBookingExpiryScheduler } from './schedulers/booking-expiry.scheduler';
+import { BookingEmailQueueProcessor } from './email/booking-email-queue.processor';
+import { BookingLifecycleService } from './email/booking-lifecycle.service';
+import { BookingMailService } from './email/booking-mail.service';
+import { BookingReminderQueueService } from './email/booking-reminder-queue.service';
+import { BookingReminderSendService } from './email/booking-reminder-send.service';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PendingBookingExpiryScheduler } from './booking-expiry.scheduler';
   ],
   providers: [
     BookingsService,
+    BookingMailService,
     BookingReminderQueueService,
     BookingReminderSendService,
     BookingLifecycleService,

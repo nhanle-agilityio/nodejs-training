@@ -3,11 +3,12 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { CronJob } from 'cron';
 import { DataSource } from 'typeorm';
-import { Booking, BookingStatus } from './booking.entity';
-import { Payment, PaymentStatus } from '../payments/payment.entity';
+import { Booking, BookingStatus } from '../booking.entity';
+import { Payment, PaymentStatus } from '../../payments/payment.entity';
+import { BookingCancellationReason } from '../email/booking-cancellation-reason';
+import { loadBookingWithEmailRelations } from '../email/booking-email-relations.util';
+import { BookingLifecycleService } from '../email/booking-lifecycle.service';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from './booking-expiry.constants';
-import { BookingCancellationReason } from './booking-cancellation-reason';
-import { BookingLifecycleService } from './booking-lifecycle.service';
 
 @Injectable()
 export class PendingBookingExpiryScheduler implements OnModuleInit {
@@ -89,10 +90,10 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
 
       expiredCount += 1;
 
-      const full = await this.dataSource.getRepository(Booking).findOne({
-        where: { id },
-        relations: ['user', 'slot'],
-      });
+      const full = await loadBookingWithEmailRelations(
+        this.dataSource.getRepository(Booking),
+        id,
+      );
       if (full) {
         await this.lifecycle.onBookingCancelled(
           full,

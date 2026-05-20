@@ -12,8 +12,8 @@ import Redlock from 'redlock';
 import { Booking, BookingStatus } from './booking.entity';
 import { Slot, SlotStatus } from '../slots/slot.entity';
 import { REDLOCK } from '../redis/redis.module';
-import { BookingCancellationReason } from './booking-cancellation-reason';
-import { BookingLifecycleService } from './booking-lifecycle.service';
+import { BookingCancellationReason } from './email/booking-cancellation-reason';
+import { BookingLifecycleService } from './email/booking-lifecycle.service';
 
 @Injectable()
 export class BookingsService {
