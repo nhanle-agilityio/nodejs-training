@@ -5,21 +5,29 @@ import type { AppConfig } from '../config/configuration';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import type Redis from 'ioredis';
 import { QUEUE_EMAIL } from './queue.constants';
-import { bullBoardFeatureModule } from './bull-board.setup';
-import { createBullmqRootOptions } from './bullmq-root.config';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 
 @Module({
   imports: [
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService, REDIS_CLIENT],
-      useFactory: (config: ConfigService<AppConfig, true>, redis: Redis) =>
-        createBullmqRootOptions(redis, config),
+      useFactory: (config: ConfigService<AppConfig, true>, redis: Redis) => {
+        const bullmqConfig = config.get('bullmq', { infer: true });
+        return {
+          connection: redis,
+          prefix: `{${bullmqConfig.prefix}}`,
+        };
+      },
     }),
     BullModule.registerQueue({
       name: QUEUE_EMAIL,
     }),
-    bullBoardFeatureModule(),
+    BullBoardModule.forFeature({
+      name: QUEUE_EMAIL,
+      adapter: BullMQAdapter,
+    }),
   ],
   exports: [BullModule],
 })
