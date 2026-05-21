@@ -6,6 +6,14 @@ export interface MailConfig {
   resendApiKey: string;
 }
 
+export interface StripeConfig {
+  secretKey: string;
+  webhookSecret: string;
+  currency: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
 export interface AppConfig {
   app: { env: string; port: number };
   database: {
@@ -19,6 +27,7 @@ export interface AppConfig {
   clerk: { secretKey: string; publishableKey: string; webhookSecret: string };
   bullmq: { prefix: string };
   mail: MailConfig;
+  stripe: StripeConfig;
 }
 
 export const loadConfiguration = (): AppConfig => ({
@@ -49,5 +58,12 @@ export const loadConfiguration = (): AppConfig => ({
     mode: process.env.MAIL_MODE === 'noop' ? 'noop' : 'live',
     from: process.env.MAIL_FROM ?? 'onboarding@resend.dev',
     resendApiKey: process.env.RESEND_API_KEY ?? '',
+  },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY ?? '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+    currency: process.env.STRIPE_CURRENCY ?? 'usd',
+    successUrl: process.env.STRIPE_SUCCESS_URL ?? '',
+    cancelUrl: process.env.STRIPE_CANCEL_URL ?? '',
   },
 });
