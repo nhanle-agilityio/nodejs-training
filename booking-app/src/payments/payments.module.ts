@@ -1,15 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from '../bookings/booking.entity';
+import { BookingsModule } from '../bookings/bookings.module';
 import { Payment } from './payment.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { StripeService } from './stripe.service';
+import { StripeWebhookController } from './webhooks/stripe-webhook.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment, Booking])],
+  imports: [TypeOrmModule.forFeature([Payment, Booking]), BookingsModule],
   providers: [StripeService, PaymentsService],
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, StripeWebhookController],
   exports: [StripeService, PaymentsService],
 })
 export class PaymentsModule {}

@@ -1,17 +1,25 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import type { AppConfig } from '../config/configuration';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
+import { loadBookingWithEmailRelations } from '../bookings/email/booking-email-relations.util';
+import { BookingLifecycleService } from '../bookings/email/booking-lifecycle.service';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from '../bookings/schedulers/booking-expiry.constants';
 import { SlotStatus } from '../slots/slot.entity';
+import { Payment, PaymentStatus } from './payment.entity';
 import { StripeService } from './stripe.service';
-import { StripeCheckoutSessionCreateParams } from './stripe.types';
+import {
+  StripeCheckoutSessionCreateParams,
+  type StripeEvent,
+} from './stripe.types';
 
 export interface CheckoutSessionResult {
   checkoutUrl: string;
@@ -21,11 +29,19 @@ export interface CheckoutSessionResult {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
+    @InjectRepository(Payment)
+    private readonly payments: Repository<Payment>,
     @InjectRepository(Booking)
     private readonly bookings: Repository<Booking>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly stripe: StripeService,
     private readonly config: ConfigService<AppConfig, true>,
+    @Inject(BookingLifecycleService)
+    private readonly lifecycle: BookingLifecycleService,
   ) {}
 
   private bookingPaymentExpiresAt(booking: Booking): Date {
@@ -37,15 +53,9 @@ export class PaymentsService {
     return Date.now() >= this.bookingPaymentExpiresAt(booking).getTime();
   }
 
-  private assertBookingNotExpired(booking: Booking): void {
-    if (this.isBookingExpired(booking)) {
-      throw new BadRequestException('Booking payment window has expired');
-    }
-  }
-
   private async tryReuseCheckoutSession(
     sessionId: string,
-  ): Promise<Omit<CheckoutSessionResult, 'expiresAt'> | null> {
+  ): Promise<CheckoutSessionResult | null> {
     try {
       const session = await this.stripe.retrieveCheckoutSession(sessionId);
       if (session.status === 'open' && session.url) {
@@ -84,19 +94,13 @@ export class PaymentsService {
       );
     }
 
-    this.assertBookingNotExpired(booking);
+    if (this.isBookingExpired(booking)) {
+      throw new BadRequestException('Booking payment window has expired');
+    }
 
     const slot = booking.slot;
-    if (!slot || slot.deletedAt) {
+    if (!slot || slot.deletedAt || slot.status !== SlotStatus.Open) {
       throw new BadRequestException('Slot is not available');
-    }
-    if (slot.status !== SlotStatus.Open) {
-      throw new BadRequestException('Slot is not open for booking');
-    }
-
-    const price = Number(slot.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      throw new BadRequestException('Slot price is invalid for checkout');
     }
 
     const expiresAt = this.bookingPaymentExpiresAt(booking);
@@ -111,6 +115,7 @@ export class PaymentsService {
     }
 
     const stripeConfig = this.config.get('stripe', { infer: true });
+    const price = Number(slot.price);
     const unitAmount = Math.round(price * 100);
     const sessionParams: StripeCheckoutSessionCreateParams = {
       mode: 'payment',
@@ -153,5 +158,78 @@ export class PaymentsService {
       sessionId: session.id,
       expiresAt,
     };
+  }
+
+  async handlePaymentIntentSucceeded(event: StripeEvent): Promise<void> {
+    const existing = await this.payments.findOne({
+      where: { stripeEventId: event.id },
+    });
+
+    if (existing) {
+      return;
+    }
+
+    const paymentIntent = event.data.object;
+    const bookingId = paymentIntent.metadata?.bookingId;
+
+    if (!bookingId) {
+      this.logger.warn(
+        `payment_intent.succeeded missing bookingId metadata: ${paymentIntent.id}`,
+      );
+      return;
+    }
+
+    let shouldConfirm = false;
+
+    await this.dataSource.transaction(async (manager) => {
+      const booking = await manager
+        .createQueryBuilder(Booking, 'booking')
+        .setLock('pessimistic_write')
+        .where('booking.id = :id', { id: bookingId })
+        .getOne();
+
+      if (!booking) {
+        this.logger.warn(`Booking not found for payment: ${bookingId}`);
+        return;
+      }
+
+      if (booking.status === BookingStatus.Confirmed) {
+        return;
+      }
+
+      if (booking.status !== BookingStatus.Pending) {
+        this.logger.warn(
+          `Booking ${bookingId} is not payable, status=${booking.status}`,
+        );
+        return;
+      }
+
+      const amount = paymentIntent.amount_received / 100;
+      const payment = manager.create(Payment, {
+        bookingId,
+        stripeEventId: event.id,
+        amount,
+        status: PaymentStatus.Succeeded,
+      });
+
+      await manager.save(payment);
+
+      booking.status = BookingStatus.Confirmed;
+      booking.stripePaymentIntentId = paymentIntent.id;
+      await manager.save(booking);
+      shouldConfirm = true;
+    });
+
+    if (!shouldConfirm) {
+      return;
+    }
+
+    const currentBooking = await loadBookingWithEmailRelations(
+      this.bookings,
+      bookingId,
+    );
+    if (currentBooking) {
+      await this.lifecycle.onBookingConfirmed(currentBooking);
+    }
   }
 }
