@@ -78,15 +78,6 @@ export class BookingsService {
         return manager.save(booking);
       });
 
-      const bookingRow = await this.bookings.findOne({
-        where: { id: saved.id },
-        relations: ['user', 'slot'],
-      });
-
-      if (bookingRow) {
-        await this.lifecycle.onBookingCreated(bookingRow);
-      }
-
       return saved;
     } finally {
       await lock.release().catch((err: Error) => {

@@ -28,11 +28,6 @@ export class BookingLifecycleService {
     private readonly reminderQueue: BookingReminderQueueService,
   ) {}
 
-  async onBookingCreated(booking: BookingWithEmailRelations): Promise<void> {
-    // TODO: Stop sending confirmation here; enqueue only from onBookingConfirmed.
-    await this.enqueueConfirmationEmail(booking);
-  }
-
   // Call when payment succeeds and booking status becomes CONFIRMED.
   async onBookingConfirmed(booking: BookingWithEmailRelations): Promise<void> {
     await this.enqueueConfirmationEmail(booking);
