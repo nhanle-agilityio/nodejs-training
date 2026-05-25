@@ -4,12 +4,14 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import type { AppConfig } from '../config/configuration';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
+import { BookingCancellationReason } from '../bookings/email/booking-cancellation-reason';
 import { loadBookingWithEmailRelations } from '../bookings/email/booking-email-relations.util';
 import { BookingLifecycleService } from '../bookings/email/booking-lifecycle.service';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from '../bookings/schedulers/booking-expiry.constants';
@@ -40,7 +42,7 @@ export class PaymentsService {
     private readonly dataSource: DataSource,
     private readonly stripe: StripeService,
     private readonly config: ConfigService<AppConfig, true>,
-    @Inject(BookingLifecycleService)
+    @Inject(forwardRef(() => BookingLifecycleService))
     private readonly lifecycle: BookingLifecycleService,
   ) {}
 
@@ -231,5 +233,58 @@ export class PaymentsService {
     if (currentBooking) {
       await this.lifecycle.onBookingConfirmed(currentBooking);
     }
+  }
+
+  async hasSucceededPayment(bookingId: string): Promise<boolean> {
+    return this.payments.exists({
+      where: { bookingId, status: PaymentStatus.Succeeded },
+    });
+  }
+
+  async refundAndCancel(
+    bookingId: string,
+    reason: BookingCancellationReason,
+  ): Promise<Booking> {
+    const booking = await this.bookings.findOne({
+      where: { id: bookingId },
+    });
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const payment = await this.payments.findOne({
+      where: { bookingId, status: PaymentStatus.Succeeded },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!payment || !booking.stripePaymentIntentId) {
+      throw new BadRequestException('No succeeded payment to refund');
+    }
+
+    await this.stripe.createRefund(
+      booking.stripePaymentIntentId,
+      `refund-${bookingId}`,
+    );
+
+    await this.dataSource.transaction(async (manager) => {
+      payment.status = PaymentStatus.Refunded;
+      await manager.save(payment);
+      booking.status = BookingStatus.Refunded;
+      await manager.save(booking);
+    });
+
+    const cancelledBooking = await loadBookingWithEmailRelations(
+      this.bookings,
+      bookingId,
+    );
+    if (cancelledBooking) {
+      await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
+    }
+
+    const updated = await this.bookings.findOne({ where: { id: bookingId } });
+    if (!updated) {
+      throw new NotFoundException('Booking not found');
+    }
+    return updated;
   }
 }

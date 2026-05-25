@@ -12,6 +12,7 @@ import { BookingLifecycleService } from './email/booking-lifecycle.service';
 import { BookingMailService } from './email/booking-mail.service';
 import { BookingReminderQueueService } from './email/booking-reminder-queue.service';
 import { BookingReminderSendService } from './email/booking-reminder-send.service';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { BookingReminderSendService } from './email/booking-reminder-send.servic
     UsersModule,
     EmailQueueModule,
     MailModule,
+    PaymentsModule,
   ],
   providers: [
     BookingsService,

@@ -14,6 +14,7 @@ import { Slot, SlotStatus } from '../slots/slot.entity';
 import { REDLOCK } from '../redis/redis.module';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
+import { PaymentsService } from '../payments/payments.service';
 
 @Injectable()
 export class BookingsService {
@@ -26,6 +27,7 @@ export class BookingsService {
     @Inject(REDLOCK)
     private readonly redlock: Redlock,
     private readonly lifecycle: BookingLifecycleService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async createBooking(userId: string, slotId: string): Promise<Booking> {
@@ -138,29 +140,45 @@ export class BookingsService {
     if (!isAdmin && booking.userId !== userId) {
       throw new NotFoundException('Booking not found');
     }
-    if (booking.status !== BookingStatus.Pending) {
-      throw new BadRequestException(
-        `Cannot cancel a booking with status ${booking.status}`,
-      );
+
+    const reason = isAdmin
+      ? BookingCancellationReason.AdminCancelled
+      : BookingCancellationReason.UserCancelled;
+
+    const hasSucceededPayment =
+      await this.paymentsService.hasSucceededPayment(id);
+
+    if (booking.status === BookingStatus.Confirmed) {
+      if (!hasSucceededPayment) {
+        throw new BadRequestException(
+          'Cannot cancel a confirmed booking without a payment record',
+        );
+      }
+      return this.paymentsService.refundAndCancel(id, reason);
     }
 
-    booking.status = BookingStatus.Cancelled;
-    const bookingRow = await this.bookings.save(booking);
+    if (booking.status === BookingStatus.Pending) {
+      if (hasSucceededPayment) {
+        return this.paymentsService.refundAndCancel(id, reason);
+      }
 
-    const bookingForEmail = await this.bookings.findOne({
-      where: { id: bookingRow.id },
-      relations: ['user', 'slot'],
-    });
+      booking.status = BookingStatus.Cancelled;
+      const bookingRow = await this.bookings.save(booking);
 
-    if (bookingForEmail) {
-      await this.lifecycle.onBookingCancelled(
-        bookingForEmail,
-        isAdmin
-          ? BookingCancellationReason.AdminCancelled
-          : BookingCancellationReason.UserCancelled,
-      );
+      const cancelledBooking = await this.bookings.findOne({
+        where: { id: bookingRow.id },
+        relations: ['user', 'slot'],
+      });
+
+      if (cancelledBooking) {
+        await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
+      }
+
+      return bookingRow;
     }
 
-    return bookingRow;
+    throw new BadRequestException(
+      `Cannot cancel a booking with status ${booking.status}`,
+    );
   }
 }

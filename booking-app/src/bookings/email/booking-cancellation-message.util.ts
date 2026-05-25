@@ -5,7 +5,7 @@ export const cancellationReasonMessage = (
 ): string => {
   switch (reason) {
     case BookingCancellationReason.UserCancelled:
-      return 'You cancelled this booking before it was confirmed.';
+      return 'You cancelled this booking.';
     case BookingCancellationReason.PaymentTimeout:
       return 'Payment was not received within 15 minutes, so this booking was automatically cancelled.';
     case BookingCancellationReason.AdminCancelled:
