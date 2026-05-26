@@ -47,17 +47,6 @@ describe('BookingLifecycleService', () => {
     service = moduleRef.get(BookingLifecycleService);
   });
 
-  it('onBookingCreated enqueues confirmation email', async () => {
-    await service.onBookingCreated(booking);
-
-    expect(emailQueue.add).toHaveBeenCalledWith(
-      JOB_BOOKING_CONFIRMED,
-      expect.objectContaining({ bookingId: booking.id }),
-      expect.objectContaining({ jobId: `booking-confirmed-${booking.id}` }),
-    );
-    expect(reminderQueue.upsertReminderJob).not.toHaveBeenCalled();
-  });
-
   it('onBookingConfirmed enqueues confirmation and upserts reminder', async () => {
     const confirmed = {
       ...booking,

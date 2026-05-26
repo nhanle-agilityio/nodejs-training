@@ -12,6 +12,7 @@ import { REDLOCK } from '../redis/redis.module';
 import { Slot, SlotStatus } from '../slots/slot.entity';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
+import { PaymentsService } from '../payments/payments.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -21,8 +22,11 @@ describe('BookingsService', () => {
   let dataSource: { transaction: jest.Mock };
   let redlock: { acquire: jest.Mock };
   let lifecycle: {
-    onBookingCreated: jest.Mock;
     onBookingCancelled: jest.Mock;
+  };
+  let paymentsService: {
+    hasRefundablePayment: jest.Mock;
+    refundAndCancel: jest.Mock;
   };
 
   const bookingId = 'b1111111-1111-1111-1111-111111111111';
@@ -69,8 +73,14 @@ describe('BookingsService', () => {
       acquire: jest.fn().mockResolvedValue(lock),
     };
     lifecycle = {
-      onBookingCreated: jest.fn().mockResolvedValue(undefined),
       onBookingCancelled: jest.fn().mockResolvedValue(undefined),
+    };
+    paymentsService = {
+      hasRefundablePayment: jest.fn().mockResolvedValue(false),
+      refundAndCancel: jest.fn().mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Refunded,
+      }),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -80,6 +90,7 @@ describe('BookingsService', () => {
         { provide: DataSource, useValue: dataSource },
         { provide: REDLOCK, useValue: redlock },
         { provide: BookingLifecycleService, useValue: lifecycle },
+        { provide: PaymentsService, useValue: paymentsService },
       ],
     }).compile();
 
@@ -164,7 +175,6 @@ describe('BookingsService', () => {
 
     it('creates a PENDING booking inside a transaction', async () => {
       const { manager } = mockTransactionManager({});
-      bookingsRepo.findOne.mockResolvedValue(bookingRowForEmail);
 
       const result = await service.createBooking(userId, slotId);
 
@@ -179,20 +189,8 @@ describe('BookingsService', () => {
         status: BookingStatus.Pending,
       });
       expect(result.status).toBe(BookingStatus.Pending);
-      expect(lifecycle.onBookingCreated).toHaveBeenCalledWith(
-        bookingRowForEmail,
-      );
-      expect(lock.release).toHaveBeenCalled();
-    });
-
-    it('skips lifecycle when reload lacks relations', async () => {
-      mockTransactionManager({});
-      bookingsRepo.findOne.mockResolvedValue(null);
-
-      await service.createBooking(userId, slotId);
-
-      expect(lifecycle.onBookingCreated).not.toHaveBeenCalled();
       expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+      expect(lock.release).toHaveBeenCalled();
     });
   });
 
@@ -239,15 +237,76 @@ describe('BookingsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('throws BadRequestException when booking is not PENDING', async () => {
+    it('throws BadRequestException when confirmed booking has no payment', async () => {
       bookingsRepo.findOne.mockResolvedValue({
         ...pendingBooking,
         status: BookingStatus.Confirmed,
+      });
+      paymentsService.hasRefundablePayment.mockResolvedValue(false);
+
+      await expect(
+        service.cancelBooking(bookingId, userId, false),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('refunds confirmed booking with succeeded payment', async () => {
+      bookingsRepo.findOne.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Confirmed,
+      });
+      paymentsService.hasRefundablePayment.mockResolvedValue(true);
+
+      const result = await service.cancelBooking(bookingId, userId, false);
+
+      expect(paymentsService.refundAndCancel).toHaveBeenCalledWith(
+        bookingId,
+        BookingCancellationReason.UserCancelled,
+      );
+      expect(result.status).toBe(BookingStatus.Refunded);
+    });
+
+    it('refunds pending booking when payment already succeeded', async () => {
+      bookingsRepo.findOne.mockResolvedValue({ ...pendingBooking });
+      paymentsService.hasRefundablePayment.mockResolvedValue(true);
+
+      await service.cancelBooking(bookingId, userId, false);
+
+      expect(paymentsService.refundAndCancel).toHaveBeenCalledWith(
+        bookingId,
+        BookingCancellationReason.UserCancelled,
+      );
+      expect(bookingsRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when booking is already cancelled', async () => {
+      bookingsRepo.findOne.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Cancelled,
       });
 
       await expect(
         service.cancelBooking(bookingId, userId, false),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('allows admin to refund a cancelled booking with refundable payment', async () => {
+      bookingsRepo.findOne.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Cancelled,
+      });
+      paymentsService.hasRefundablePayment.mockResolvedValue(true);
+      paymentsService.refundAndCancel.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Cancelled,
+      });
+
+      const result = await service.cancelBooking(bookingId, userId, true);
+
+      expect(paymentsService.refundAndCancel).toHaveBeenCalledWith(
+        bookingId,
+        BookingCancellationReason.AdminCancelled,
+      );
+      expect(result.status).toBe(BookingStatus.Cancelled);
     });
 
     it('allows admin to cancel another user PENDING booking', async () => {

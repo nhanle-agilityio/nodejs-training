@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { Booking, BookingStatus } from '../booking.entity';
 import { BookingCancellationReason } from '../email/booking-cancellation-reason';
 import { BookingLifecycleService } from '../email/booking-lifecycle.service';
+import { StripeService } from '../../payments/stripe.service';
 import { PendingBookingExpiryScheduler } from './booking-expiry.scheduler';
 
 describe('PendingBookingExpiryScheduler', () => {
@@ -14,10 +15,21 @@ describe('PendingBookingExpiryScheduler', () => {
     getRepository: jest.Mock;
   };
   let lifecycle: { onBookingCancelled: jest.Mock };
+  let stripe: { expireCheckoutSession: jest.Mock };
   let bookingRepo: { findOne: jest.Mock };
 
   const bookingId = 'b1111111-1111-1111-1111-111111111111';
   const staleCreatedAt = new Date('2026-01-01T00:00:00.000Z');
+  const bookingWithRelations = {
+    id: bookingId,
+    status: BookingStatus.Cancelled,
+    user: { email: 'guest@test.com', name: 'Guest' },
+    slot: {
+      title: 'Yoga',
+      startTime: new Date('2026-06-15T14:00:00.000Z'),
+      endTime: new Date('2026-06-15T15:00:00.000Z'),
+    },
+  };
 
   beforeEach(async () => {
     bookingRepo = { findOne: jest.fn() };
@@ -27,6 +39,9 @@ describe('PendingBookingExpiryScheduler', () => {
       getRepository: jest.fn().mockReturnValue(bookingRepo),
     };
     lifecycle = { onBookingCancelled: jest.fn().mockResolvedValue(undefined) };
+    stripe = {
+      expireCheckoutSession: jest.fn().mockResolvedValue({ id: 'cs_expired' }),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -34,6 +49,7 @@ describe('PendingBookingExpiryScheduler', () => {
         { provide: SchedulerRegistry, useValue: { addCronJob: jest.fn() } },
         { provide: DataSource, useValue: dataSource },
         { provide: BookingLifecycleService, useValue: lifecycle },
+        { provide: StripeService, useValue: stripe },
       ],
     }).compile();
 
@@ -93,16 +109,7 @@ describe('PendingBookingExpiryScheduler', () => {
         createdAt: staleCreatedAt,
       },
     });
-    bookingRepo.findOne.mockResolvedValue({
-      id: bookingId,
-      status: BookingStatus.Cancelled,
-      user: { email: 'guest@test.com', name: 'Guest' },
-      slot: {
-        title: 'Yoga',
-        startTime: new Date('2026-06-15T14:00:00.000Z'),
-        endTime: new Date('2026-06-15T15:00:00.000Z'),
-      },
-    });
+    bookingRepo.findOne.mockResolvedValue(bookingWithRelations);
 
     await scheduler.expireStalePendingBookings();
 
@@ -110,6 +117,43 @@ describe('PendingBookingExpiryScheduler', () => {
       expect.objectContaining({ id: bookingId }),
       BookingCancellationReason.PaymentTimeout,
     );
+    expect(stripe.expireCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('expires Stripe checkout session when booking had an open session', async () => {
+    mockCandidateQuery([bookingId]);
+    mockExpireTransaction({
+      booking: {
+        id: bookingId,
+        status: BookingStatus.Pending,
+        createdAt: staleCreatedAt,
+        stripeSessionId: 'cs_stale',
+      },
+    });
+    bookingRepo.findOne.mockResolvedValue(bookingWithRelations);
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(stripe.expireCheckoutSession).toHaveBeenCalledWith('cs_stale');
+    expect(lifecycle.onBookingCancelled).toHaveBeenCalled();
+  });
+
+  it('continues when Stripe session expire fails', async () => {
+    mockCandidateQuery([bookingId]);
+    mockExpireTransaction({
+      booking: {
+        id: bookingId,
+        status: BookingStatus.Pending,
+        createdAt: staleCreatedAt,
+        stripeSessionId: 'cs_stale',
+      },
+    });
+    bookingRepo.findOne.mockResolvedValue(bookingWithRelations);
+    stripe.expireCheckoutSession.mockRejectedValue(new Error('stripe down'));
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(lifecycle.onBookingCancelled).toHaveBeenCalled();
   });
 
   it('skips expiry when a succeeded payment exists', async () => {
@@ -127,6 +171,7 @@ describe('PendingBookingExpiryScheduler', () => {
 
     expect(save).not.toHaveBeenCalled();
     expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+    expect(stripe.expireCheckoutSession).not.toHaveBeenCalled();
   });
 
   it('skips lifecycle when booking relations cannot be reloaded', async () => {
