@@ -5,10 +5,12 @@ import { CronJob } from 'cron';
 import { DataSource } from 'typeorm';
 import { Booking, BookingStatus } from '../booking.entity';
 import { Payment, PaymentStatus } from '../../payments/payment.entity';
+import { StripeService } from '../../payments/stripe.service';
 import { BookingCancellationReason } from '../email/booking-cancellation-reason';
-import { loadBookingWithEmailRelations } from '../email/booking-email-relations.util';
+import { getBookingById } from '../email/booking-email-relations.util';
 import { BookingLifecycleService } from '../email/booking-lifecycle.service';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from './booking-expiry.constants';
+import { pendingPaymentCutoff } from './booking-payment.util';
 
 @Injectable()
 export class PendingBookingExpiryScheduler implements OnModuleInit {
@@ -19,6 +21,7 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly lifecycle: BookingLifecycleService,
+    private readonly stripe: StripeService,
   ) {}
 
   onModuleInit() {
@@ -36,11 +39,9 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
   }
 
   async expireStalePendingBookings(): Promise<void> {
-    const ttlMs = BOOKING_PAYMENT_PENDING_EXPIRY.pendingTtlMinutes * 60_000;
-    const cutoff = new Date(Date.now() - ttlMs);
+    const cutoff = pendingPaymentCutoff();
 
-    // Find candidate IDs only (cheap, no long locks)
-    const raw = await this.dataSource
+    const bookings = await this.dataSource
       .createQueryBuilder()
       .select('b.id', 'id')
       .from(Booking, 'b')
@@ -54,17 +55,18 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
       .having('COUNT(p.id) = 0')
       .getRawMany<{ id: string }>();
 
-    const ids = raw.map((r) => r.id);
+    const bookingIds = bookings.map((booking) => booking.id);
     let expiredCount = 0;
 
-    for (const id of ids) {
+    for (const bookingId of bookingIds) {
       let didExpire = false;
+      let stripeSessionId: string | null = null;
 
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
           .createQueryBuilder(Booking, 'b')
           .setLock('pessimistic_write')
-          .where('b.id = :id', { id })
+          .where('b.id = :id', { id: bookingId })
           .getOne();
 
         if (!booking || booking.status !== BookingStatus.Pending) {
@@ -75,10 +77,11 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
         }
 
         const succeeded = await manager.exists(Payment, {
-          where: { bookingId: id, status: PaymentStatus.Succeeded },
+          where: { bookingId: bookingId, status: PaymentStatus.Succeeded },
         });
         if (succeeded) return;
 
+        stripeSessionId = booking.stripeSessionId ?? null;
         booking.status = BookingStatus.Cancelled;
         await manager.save(booking);
         didExpire = true;
@@ -90,13 +93,23 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
 
       expiredCount += 1;
 
-      const full = await loadBookingWithEmailRelations(
+      if (stripeSessionId) {
+        try {
+          await this.stripe.expireCheckoutSession(stripeSessionId);
+        } catch (err) {
+          this.logger.warn(
+            `Failed to expire Stripe session ${stripeSessionId as string} for booking ${bookingId}: ${(err as Error).message}`,
+          );
+        }
+      }
+
+      const booking = await getBookingById(
         this.dataSource.getRepository(Booking),
-        id,
+        bookingId,
       );
-      if (full) {
+      if (booking) {
         await this.lifecycle.onBookingCancelled(
-          full,
+          booking,
           BookingCancellationReason.PaymentTimeout,
         );
       }

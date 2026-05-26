@@ -57,4 +57,10 @@ export class StripeService {
       { idempotencyKey },
     );
   }
+
+  async expireCheckoutSession(
+    sessionId: string,
+  ): Promise<StripeCheckoutSession> {
+    return this.stripe.checkout.sessions.expire(sessionId);
+  }
 }

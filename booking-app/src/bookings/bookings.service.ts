@@ -145,11 +145,11 @@ export class BookingsService {
       ? BookingCancellationReason.AdminCancelled
       : BookingCancellationReason.UserCancelled;
 
-    const hasSucceededPayment =
-      await this.paymentsService.hasSucceededPayment(id);
+    const hasRefundablePayment =
+      await this.paymentsService.hasRefundablePayment(id);
 
     if (booking.status === BookingStatus.Confirmed) {
-      if (!hasSucceededPayment) {
+      if (!hasRefundablePayment) {
         throw new BadRequestException(
           'Cannot cancel a confirmed booking without a payment record',
         );
@@ -157,8 +157,17 @@ export class BookingsService {
       return this.paymentsService.refundAndCancel(id, reason);
     }
 
+    if (booking.status === BookingStatus.Cancelled) {
+      if (isAdmin && hasRefundablePayment) {
+        return this.paymentsService.refundAndCancel(id, reason);
+      }
+      throw new BadRequestException(
+        `Cannot cancel a booking with status ${booking.status}`,
+      );
+    }
+
     if (booking.status === BookingStatus.Pending) {
-      if (hasSucceededPayment) {
+      if (hasRefundablePayment) {
         return this.paymentsService.refundAndCancel(id, reason);
       }
 

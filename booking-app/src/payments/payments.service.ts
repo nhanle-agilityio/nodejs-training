@@ -8,19 +8,24 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AppConfig } from '../config/configuration';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
 import { BookingCancellationReason } from '../bookings/email/booking-cancellation-reason';
-import { loadBookingWithEmailRelations } from '../bookings/email/booking-email-relations.util';
+import { getBookingById } from '../bookings/email/booking-email-relations.util';
 import { BookingLifecycleService } from '../bookings/email/booking-lifecycle.service';
-import { BOOKING_PAYMENT_PENDING_EXPIRY } from '../bookings/schedulers/booking-expiry.constants';
+import {
+  bookingPaymentExpiresAt,
+  isBookingPaymentExpired,
+} from '../bookings/schedulers/booking-payment.util';
 import { SlotStatus } from '../slots/slot.entity';
+import { fromStripeCents, toStripeCents } from './payment.util';
 import { Payment, PaymentStatus } from './payment.entity';
 import { StripeService } from './stripe.service';
 import {
   StripeCheckoutSessionCreateParams,
   type StripeEvent,
+  type StripePaymentIntent,
 } from './stripe.types';
 
 export interface CheckoutSessionResult {
@@ -46,15 +51,6 @@ export class PaymentsService {
     private readonly lifecycle: BookingLifecycleService,
   ) {}
 
-  private bookingPaymentExpiresAt(booking: Booking): Date {
-    const ttlMs = BOOKING_PAYMENT_PENDING_EXPIRY.pendingTtlMinutes * 60_000;
-    return new Date(booking.createdAt.getTime() + ttlMs);
-  }
-
-  private isBookingExpired(booking: Booking): boolean {
-    return Date.now() >= this.bookingPaymentExpiresAt(booking).getTime();
-  }
-
   private async tryReuseCheckoutSession(
     sessionId: string,
   ): Promise<CheckoutSessionResult | null> {
@@ -66,10 +62,137 @@ export class PaymentsService {
           sessionId: session.id,
         };
       }
-    } catch {
-      // Fall through and create a fresh session.
+    } catch (err) {
+      this.logger.warn(
+        `Could not reuse checkout session ${sessionId}: ${(err as Error).message}`,
+      );
     }
     return null;
+  }
+
+  private async tryConfirmBookingFromPayment(
+    manager: EntityManager,
+    event: StripeEvent,
+    bookingId: string,
+    paymentIntent: StripePaymentIntent,
+  ): Promise<boolean> {
+    const existingPayment = await manager.findOne(Payment, {
+      where: { stripeEventId: event.id },
+    });
+    if (existingPayment) {
+      return false;
+    }
+
+    const booking = await manager
+      .createQueryBuilder(Booking, 'booking')
+      .setLock('pessimistic_write')
+      .innerJoinAndSelect('booking.slot', 'slot')
+      .where('booking.id = :id', { id: bookingId })
+      .getOne();
+
+    if (!booking) {
+      this.logger.warn(`Booking ${bookingId} not found for payment`);
+      return false;
+    }
+
+    if (
+      booking.status === BookingStatus.Confirmed ||
+      booking.status === BookingStatus.Refunded
+    ) {
+      return false;
+    }
+
+    const rejectionReason = this.getPaymentRejectionReason(
+      booking,
+      paymentIntent,
+    );
+    if (rejectionReason) {
+      this.logger.warn(rejectionReason);
+      await this.recordRejectedPayment(manager, booking, event, paymentIntent);
+      return false;
+    }
+
+    const payment = manager.create(Payment, {
+      bookingId,
+      stripeEventId: event.id,
+      amount: fromStripeCents(paymentIntent.amount_received),
+      status: PaymentStatus.Succeeded,
+    });
+    await manager.save(payment);
+
+    booking.status = BookingStatus.Confirmed;
+    booking.stripePaymentIntentId = paymentIntent.id;
+    await manager.save(booking);
+
+    return true;
+  }
+
+  // Money was collected but booking was not confirmed — keep refs for API refund.
+  private async recordRejectedPayment(
+    manager: EntityManager,
+    booking: Booking,
+    event: StripeEvent,
+    paymentIntent: StripePaymentIntent,
+  ): Promise<void> {
+    booking.stripePaymentIntentId = paymentIntent.id;
+    await manager.save(booking);
+
+    const payment = manager.create(Payment, {
+      bookingId: booking.id,
+      stripeEventId: event.id,
+      amount: fromStripeCents(paymentIntent.amount_received),
+      status: PaymentStatus.Failed,
+    });
+    await manager.save(payment);
+  }
+
+  private getPaymentRejectionReason(
+    booking: Booking,
+    paymentIntent: StripePaymentIntent,
+  ): string | null {
+    const slot = booking.slot;
+    if (!slot) {
+      return `Booking ${booking.id} has no slot for payment validation`;
+    }
+
+    const stripeConfig = this.config.get('stripe', { infer: true });
+    const expectedAmount = toStripeCents(slot.price);
+    const expectedCurrency = stripeConfig.currency.toLowerCase();
+    const receivedCurrency = paymentIntent.currency?.toLowerCase();
+
+    if (paymentIntent.amount_received !== expectedAmount) {
+      return `Payment amount mismatch for booking ${booking.id}: expected ${expectedAmount}, received ${paymentIntent.amount_received}`;
+    }
+
+    if (receivedCurrency && receivedCurrency !== expectedCurrency) {
+      return `Payment currency mismatch for booking ${booking.id}: expected ${expectedCurrency}, received ${receivedCurrency}`;
+    }
+
+    if (booking.status === BookingStatus.Cancelled) {
+      return `Late payment for booking ${booking.id} (cancelled). Refund via API if needed.`;
+    }
+
+    if (
+      booking.status === BookingStatus.Pending &&
+      isBookingPaymentExpired(booking)
+    ) {
+      return `Late payment for booking ${booking.id} (expired). Refund via API if needed.`;
+    }
+
+    if (booking.status !== BookingStatus.Pending) {
+      return `Booking ${booking.id} is not payable, status=${booking.status}`;
+    }
+
+    return null;
+  }
+
+  async hasRefundablePayment(bookingId: string): Promise<boolean> {
+    return this.payments.exists({
+      where: [
+        { bookingId, status: PaymentStatus.Succeeded },
+        { bookingId, status: PaymentStatus.Failed },
+      ],
+    });
   }
 
   async createCheckoutSession(
@@ -96,7 +219,7 @@ export class PaymentsService {
       );
     }
 
-    if (this.isBookingExpired(booking)) {
+    if (isBookingPaymentExpired(booking)) {
       throw new BadRequestException('Booking payment window has expired');
     }
 
@@ -105,7 +228,7 @@ export class PaymentsService {
       throw new BadRequestException('Slot is not available');
     }
 
-    const expiresAt = this.bookingPaymentExpiresAt(booking);
+    const expiresAt = bookingPaymentExpiresAt(booking);
 
     if (booking.stripeSessionId) {
       const existing = await this.tryReuseCheckoutSession(
@@ -117,8 +240,7 @@ export class PaymentsService {
     }
 
     const stripeConfig = this.config.get('stripe', { infer: true });
-    const price = Number(slot.price);
-    const unitAmount = Math.round(price * 100);
+    const unitAmount = toStripeCents(slot.price);
     const sessionParams: StripeCheckoutSessionCreateParams = {
       mode: 'payment',
       success_url: stripeConfig.successUrl,
@@ -163,14 +285,6 @@ export class PaymentsService {
   }
 
   async handlePaymentIntentSucceeded(event: StripeEvent): Promise<void> {
-    const existing = await this.payments.findOne({
-      where: { stripeEventId: event.id },
-    });
-
-    if (existing) {
-      return;
-    }
-
     const paymentIntent = event.data.object;
     const bookingId = paymentIntent.metadata?.bookingId;
 
@@ -181,64 +295,23 @@ export class PaymentsService {
       return;
     }
 
-    let shouldConfirm = false;
-
-    await this.dataSource.transaction(async (manager) => {
-      const booking = await manager
-        .createQueryBuilder(Booking, 'booking')
-        .setLock('pessimistic_write')
-        .where('booking.id = :id', { id: bookingId })
-        .getOne();
-
-      if (!booking) {
-        this.logger.warn(`Booking not found for payment: ${bookingId}`);
-        return;
-      }
-
-      if (booking.status === BookingStatus.Confirmed) {
-        return;
-      }
-
-      if (booking.status !== BookingStatus.Pending) {
-        this.logger.warn(
-          `Booking ${bookingId} is not payable, status=${booking.status}`,
-        );
-        return;
-      }
-
-      const amount = paymentIntent.amount_received / 100;
-      const payment = manager.create(Payment, {
+    const confirmed = await this.dataSource.transaction(async (manager) =>
+      this.tryConfirmBookingFromPayment(
+        manager,
+        event,
         bookingId,
-        stripeEventId: event.id,
-        amount,
-        status: PaymentStatus.Succeeded,
-      });
+        paymentIntent,
+      ),
+    );
 
-      await manager.save(payment);
-
-      booking.status = BookingStatus.Confirmed;
-      booking.stripePaymentIntentId = paymentIntent.id;
-      await manager.save(booking);
-      shouldConfirm = true;
-    });
-
-    if (!shouldConfirm) {
+    if (!confirmed) {
       return;
     }
 
-    const currentBooking = await loadBookingWithEmailRelations(
-      this.bookings,
-      bookingId,
-    );
+    const currentBooking = await getBookingById(this.bookings, bookingId);
     if (currentBooking) {
       await this.lifecycle.onBookingConfirmed(currentBooking);
     }
-  }
-
-  async hasSucceededPayment(bookingId: string): Promise<boolean> {
-    return this.payments.exists({
-      where: { bookingId, status: PaymentStatus.Succeeded },
-    });
   }
 
   async refundAndCancel(
@@ -253,38 +326,55 @@ export class PaymentsService {
     }
 
     const payment = await this.payments.findOne({
-      where: { bookingId, status: PaymentStatus.Succeeded },
+      where: [
+        { bookingId, status: PaymentStatus.Succeeded },
+        { bookingId, status: PaymentStatus.Failed },
+      ],
       order: { createdAt: 'DESC' },
     });
 
     if (!payment || !booking.stripePaymentIntentId) {
-      throw new BadRequestException('No succeeded payment to refund');
+      throw new BadRequestException('No refundable payment for this booking');
     }
 
-    await this.stripe.createRefund(
-      booking.stripePaymentIntentId,
-      `refund-${bookingId}`,
-    );
+    try {
+      await this.stripe.createRefund(
+        booking.stripePaymentIntentId,
+        `refund-${bookingId}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Stripe refund failed for booking ${bookingId}: ${(err as Error).message}`,
+      );
+
+      throw new BadRequestException('Stripe refund failed');
+    }
+
+    const wasConfirmed = booking.status === BookingStatus.Confirmed;
 
     await this.dataSource.transaction(async (manager) => {
       payment.status = PaymentStatus.Refunded;
+      if (wasConfirmed) {
+        booking.status = BookingStatus.Refunded;
+      }
       await manager.save(payment);
-      booking.status = BookingStatus.Refunded;
       await manager.save(booking);
     });
 
-    const cancelledBooking = await loadBookingWithEmailRelations(
-      this.bookings,
-      bookingId,
-    );
-    if (cancelledBooking) {
-      await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
+    if (wasConfirmed) {
+      const cancelledBooking = await getBookingById(this.bookings, bookingId);
+      if (cancelledBooking) {
+        await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
+      }
     }
 
-    const updated = await this.bookings.findOne({ where: { id: bookingId } });
-    if (!updated) {
+    const bookingUpdated = await this.bookings.findOne({
+      where: { id: bookingId },
+    });
+
+    if (!bookingUpdated) {
       throw new NotFoundException('Booking not found');
     }
-    return updated;
+    return bookingUpdated;
   }
 }

@@ -6,6 +6,7 @@ export type StripePaymentIntent = {
   id: string;
   metadata?: { bookingId?: string };
   amount_received: number;
+  currency?: string;
 };
 
 export type StripeEvent = {
