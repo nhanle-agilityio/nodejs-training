@@ -14,6 +14,11 @@ export interface StripeConfig {
   cancelUrl: string;
 }
 
+export interface ThrottleConfig {
+  ttl: number;
+  limit: number;
+}
+
 export interface AppConfig {
   app: { env: string; port: number };
   database: {
@@ -28,6 +33,7 @@ export interface AppConfig {
   bullmq: { prefix: string };
   mail: MailConfig;
   stripe: StripeConfig;
+  throttle: ThrottleConfig;
 }
 
 export const loadConfiguration = (): AppConfig => ({
@@ -65,5 +71,9 @@ export const loadConfiguration = (): AppConfig => ({
     currency: process.env.STRIPE_CURRENCY ?? 'usd',
     successUrl: process.env.STRIPE_SUCCESS_URL ?? '',
     cancelUrl: process.env.STRIPE_CANCEL_URL ?? '',
+  },
+  throttle: {
+    ttl: parseInt(process.env.THROTTLE_TTL ?? '60000', 10),
+    limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),
   },
 });

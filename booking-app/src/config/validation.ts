@@ -28,4 +28,6 @@ export const envValidationSchema = Joi.object({
   STRIPE_CURRENCY: Joi.string().default('usd'),
   STRIPE_SUCCESS_URL: Joi.string().required(),
   STRIPE_CANCEL_URL: Joi.string().required(),
+  THROTTLE_TTL: Joi.number().default(60000),
+  THROTTLE_LIMIT: Joi.number().default(100),
 });
