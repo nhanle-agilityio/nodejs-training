@@ -9,6 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { PaymentsService } from '../payments.service';
@@ -20,6 +21,7 @@ interface RawBodyRequest extends Request {
 }
 
 @ApiExcludeController()
+@SkipThrottle()
 @Controller('webhooks/stripe')
 export class StripeWebhookController {
   private readonly logger = new Logger(StripeWebhookController.name);

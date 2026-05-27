@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ClerkAuthGuard } from './guards/clerk-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { ClerkWebhookController } from './webhooks/clerk-webhook.controller';
@@ -9,6 +10,10 @@ import { PoliciesGuard } from '../casl/policies.guard';
   imports: [UsersModule],
   providers: [
     ClerkAuthGuard,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: ClerkAuthGuard,

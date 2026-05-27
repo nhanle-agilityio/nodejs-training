@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Webhook } from 'svix';
 import { Public } from '../../common/decorators/public.decorator';
@@ -39,6 +40,7 @@ interface RawBodyRequest extends Request {
 }
 
 @ApiExcludeController()
+@SkipThrottle()
 @Controller('webhooks/clerk')
 export class ClerkWebhookController {
   private readonly logger = new Logger(ClerkWebhookController.name);
