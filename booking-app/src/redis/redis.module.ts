@@ -4,9 +4,10 @@ import type Redis from 'ioredis';
 import Redlock from 'redlock';
 import type { AppConfig } from '../config/configuration';
 import { createAppRedisClient } from './redis.config';
+import { RedisCacheService } from './redis-cache.service';
+import { REDIS_CLIENT, REDLOCK } from './redis.tokens';
 
-export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
-export const REDLOCK = Symbol('REDLOCK');
+export { REDIS_CLIENT, REDLOCK };
 
 const redlockSettings = {
   retryCount: 5,
@@ -31,8 +32,9 @@ const redlockSettings = {
       inject: [REDIS_CLIENT],
       useFactory: (redis: Redis) => new Redlock([redis], redlockSettings),
     },
+    RedisCacheService,
   ],
-  exports: [REDIS_CLIENT, REDLOCK],
+  exports: [REDIS_CLIENT, REDLOCK, RedisCacheService],
 })
 export class RedisModule implements OnModuleDestroy {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
