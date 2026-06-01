@@ -15,6 +15,7 @@ import { REDLOCK } from '../redis/redis.module';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
 import { PaymentsService } from '../payments/payments.service';
+import { SlotsCacheService } from '../slots/slots-cache.service';
 
 @Injectable()
 export class BookingsService {
@@ -28,6 +29,7 @@ export class BookingsService {
     private readonly redlock: Redlock,
     private readonly lifecycle: BookingLifecycleService,
     private readonly paymentsService: PaymentsService,
+    private readonly slotsCache: SlotsCacheService,
   ) {}
 
   async createBooking(userId: string, slotId: string): Promise<Booking> {
@@ -80,6 +82,8 @@ export class BookingsService {
         return manager.save(booking);
       });
 
+      // Invalidate the slot list cache whenever a new booking is created
+      await this.slotsCache.invalidateAll();
       return saved;
     } finally {
       await lock.release().catch((err: Error) => {

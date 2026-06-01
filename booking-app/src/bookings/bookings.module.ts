@@ -13,6 +13,7 @@ import { BookingMailService } from './email/booking-mail.service';
 import { BookingReminderQueueService } from './email/booking-reminder-queue.service';
 import { BookingReminderSendService } from './email/booking-reminder-send.service';
 import { PaymentsModule } from '../payments/payments.module';
+import { SlotsModule } from '../slots/slots.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PaymentsModule } from '../payments/payments.module';
     EmailQueueModule,
     MailModule,
     PaymentsModule,
+    SlotsModule,
   ],
   providers: [
     BookingsService,
