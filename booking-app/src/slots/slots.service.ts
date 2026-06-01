@@ -9,12 +9,14 @@ import { Slot, SlotStatus } from './slot.entity';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 import { SlotsQueryDto } from './dto/slots-query.dto';
+import { SlotsCacheService } from './slots-cache.service';
 
 @Injectable()
 export class SlotsService {
   constructor(
     @InjectRepository(Slot)
     private readonly slots: Repository<Slot>,
+    private readonly cache: SlotsCacheService,
   ) {}
 
   async createSlot(dto: CreateSlotDto): Promise<Slot> {
@@ -33,14 +35,21 @@ export class SlotsService {
       status: SlotStatus.Open,
     });
 
-    return this.slots.save(slot);
+    const saved = await this.slots.save(slot);
+    await this.cache.invalidateAll();
+    return saved;
   }
 
   async getAllSlots(query: SlotsQueryDto): Promise<Slot[]> {
+    const cached = await this.cache.get(query);
+    if (cached) return cached;
+
     const where: Record<string, unknown> = {};
     if (query.status) where.status = query.status;
 
-    return this.slots.find({ where, order: { startTime: 'ASC' } });
+    const slots = await this.slots.find({ where, order: { startTime: 'ASC' } });
+    await this.cache.set(slots, query);
+    return slots;
   }
 
   async getSlotById(id: string): Promise<Slot> {
@@ -68,11 +77,16 @@ export class SlotsService {
     if (dto.price !== undefined) slot.price = dto.price;
     if (dto.status !== undefined) slot.status = dto.status;
 
-    return this.slots.save(slot);
+    const saved = await this.slots.save(slot);
+    await this.cache.invalidateAll();
+    return saved;
   }
 
   async deleteSlot(id: string): Promise<void> {
     const result = await this.slots.softDelete({ id });
+
     if (!result.affected) throw new NotFoundException('Slot not found');
+
+    await this.cache.invalidateAll();
   }
 }
