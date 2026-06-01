@@ -30,4 +30,5 @@ export const envValidationSchema = Joi.object({
   STRIPE_CANCEL_URL: Joi.string().required(),
   THROTTLE_TTL: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(100),
+  SLOTS_CACHE_TTL: Joi.number().default(300),
 });

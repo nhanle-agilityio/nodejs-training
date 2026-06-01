@@ -34,6 +34,7 @@ export interface AppConfig {
   mail: MailConfig;
   stripe: StripeConfig;
   throttle: ThrottleConfig;
+  slotsCache: { ttl: number };
 }
 
 export const loadConfiguration = (): AppConfig => ({
@@ -75,5 +76,8 @@ export const loadConfiguration = (): AppConfig => ({
   throttle: {
     ttl: parseInt(process.env.THROTTLE_TTL ?? '60000', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),
+  },
+  slotsCache: {
+    ttl: parseInt(process.env.SLOTS_CACHE_TTL ?? '300', 10),
   },
 });
