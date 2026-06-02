@@ -13,7 +13,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api', {
-    exclude: ['webhooks/(.*)', ...BULL_BOARD_PREFIX_EXCLUSIONS],
+    exclude: ['webhooks/(.*)', 'health', ...BULL_BOARD_PREFIX_EXCLUSIONS],
   });
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());

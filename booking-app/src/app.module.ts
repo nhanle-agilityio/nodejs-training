@@ -17,6 +17,7 @@ import { RedisModule, REDIS_CLIENT } from './redis/redis.module';
 import { EmailQueueModule } from './email-queue/email-queue.module';
 import { bullBoardRootModule } from './email-queue/bull-board.setup';
 import { MailModule } from './mail/mail.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { MailModule } from './mail/mail.module';
     BookingsModule,
     PaymentsModule,
     MailModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
