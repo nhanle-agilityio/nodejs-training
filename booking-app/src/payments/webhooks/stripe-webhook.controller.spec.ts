@@ -39,7 +39,12 @@ describe('StripeWebhookController', () => {
     );
 
     expect(stripeService.constructWebhookEvent).toHaveBeenCalled();
-    expect(paymentsService.handlePaymentIntentSucceeded).toHaveBeenCalled();
+    expect(paymentsService.handlePaymentIntentSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'evt_1',
+        type: 'payment_intent.succeeded',
+      }),
+    );
     expect(result).toEqual({
       received: true,
       type: 'payment_intent.succeeded',

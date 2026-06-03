@@ -41,7 +41,7 @@ describe('PaymentsService', () => {
     stripeSessionId: null,
     slot: {
       id: 's1111111-1111-1111-1111-111111111111',
-      title: 'Yoga',
+      title: 'Slot Title Name',
       price: 25,
       status: SlotStatus.Open,
       deletedAt: null,
@@ -176,6 +176,57 @@ describe('PaymentsService', () => {
       service.createCheckoutSession(bookingId, userId, false),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  // H3 — slot unavailability guards
+  it('throws when slot is null', async () => {
+    bookingsRepo.findOne.mockResolvedValue({
+      ...booking,
+      slot: null,
+    } as unknown as Booking);
+
+    await expect(
+      service.createCheckoutSession(bookingId, userId, false),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('throws when slot is soft-deleted', async () => {
+    bookingsRepo.findOne.mockResolvedValue({
+      ...booking,
+      slot: { ...booking.slot, deletedAt: new Date() },
+    });
+
+    await expect(
+      service.createCheckoutSession(bookingId, userId, false),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('throws when slot is not open', async () => {
+    bookingsRepo.findOne.mockResolvedValue({
+      ...booking,
+      slot: { ...booking.slot, status: SlotStatus.Closed },
+    });
+
+    await expect(
+      service.createCheckoutSession(bookingId, userId, false),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  // H4 — admin bypass
+  it('allows admin to create checkout for another user booking', async () => {
+    bookingsRepo.findOne.mockResolvedValue(booking);
+
+    const result = await service.createCheckoutSession(
+      bookingId,
+      'admin-user-id',
+      true,
+    );
+
+    expect(result.checkoutUrl).toContain('checkout.stripe.test');
+    expect(stripe.createCheckoutSession).toHaveBeenCalled();
   });
 
   describe('handlePaymentIntentSucceeded', () => {
@@ -369,6 +420,37 @@ describe('PaymentsService', () => {
       expect(dataSource.transaction).not.toHaveBeenCalled();
       expect(lifecycle.onBookingConfirmed).not.toHaveBeenCalled();
     });
+
+    // H5 — already-Confirmed / Refunded idempotency
+    it('skips payment save when booking is already Confirmed', async () => {
+      const { txSave } = mockPaymentTransaction({
+        booking: {
+          ...booking,
+          status: BookingStatus.Confirmed,
+          slot: { ...booking.slot },
+        },
+      });
+
+      await service.handlePaymentIntentSucceeded(event);
+
+      expect(txSave).not.toHaveBeenCalled();
+      expect(lifecycle.onBookingConfirmed).not.toHaveBeenCalled();
+    });
+
+    it('skips payment save when booking is already Refunded', async () => {
+      const { txSave } = mockPaymentTransaction({
+        booking: {
+          ...booking,
+          status: BookingStatus.Refunded,
+          slot: { ...booking.slot },
+        },
+      });
+
+      await service.handlePaymentIntentSucceeded(event);
+
+      expect(txSave).not.toHaveBeenCalled();
+      expect(lifecycle.onBookingConfirmed).not.toHaveBeenCalled();
+    });
   });
 
   describe('refundAndCancel', () => {
@@ -470,6 +552,56 @@ describe('PaymentsService', () => {
           BookingCancellationReason.UserCancelled,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    // H7 — booking not found
+    it('throws NotFoundException when booking does not exist', async () => {
+      bookingsRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.refundAndCancel(
+          bookingId,
+          BookingCancellationReason.UserCancelled,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    // H6 — Pending booking refund path
+    it('issues refund for pending booking without updating its status', async () => {
+      const pendingWithIntent = {
+        ...booking,
+        status: BookingStatus.Pending,
+        stripePaymentIntentId: 'pi_1',
+      } as Booking;
+
+      bookingsRepo.findOne
+        .mockResolvedValueOnce(pendingWithIntent)
+        .mockResolvedValueOnce(pendingWithIntent);
+      paymentsRepo.findOne.mockResolvedValue({
+        id: 'pay_1',
+        bookingId,
+        status: PaymentStatus.Failed,
+      } as Payment);
+      dataSource.transaction.mockImplementation(
+        async (fn: (manager: unknown) => Promise<void>) => {
+          const manager = {
+            save: jest.fn().mockImplementation((row) => Promise.resolve(row)),
+          };
+          await fn(manager);
+        },
+      );
+
+      const result = await service.refundAndCancel(
+        bookingId,
+        BookingCancellationReason.AdminCancelled,
+      );
+
+      expect(stripe.createRefund).toHaveBeenCalledWith(
+        'pi_1',
+        `refund-${bookingId}`,
+      );
+      expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+      expect(result.status).toBe(BookingStatus.Pending);
     });
 
     it('throws when Stripe refund fails', async () => {
