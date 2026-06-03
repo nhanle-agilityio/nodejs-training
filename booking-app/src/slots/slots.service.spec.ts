@@ -182,6 +182,43 @@ describe('SlotsService', () => {
       expect(slotsRepo.save).toHaveBeenCalled();
       expect(cache.invalidateAll).toHaveBeenCalled();
     });
+
+    it('uses existing endTime when only startTime is supplied', async () => {
+      slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
+      const newStart = '2026-06-01T08:00:00.000Z';
+
+      const updated = await service.updateSlot(slotId, {
+        startTime: newStart,
+      });
+
+      expect(updated.startTime).toEqual(new Date(newStart));
+      expect(updated.endTime).toEqual(baseSlot.endTime);
+      expect(slotsRepo.save).toHaveBeenCalled();
+    });
+
+    it('uses existing startTime when only endTime is supplied', async () => {
+      slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
+      const newEnd = '2026-06-01T12:00:00.000Z';
+
+      const updated = await service.updateSlot(slotId, {
+        endTime: newEnd,
+      });
+
+      expect(updated.endTime).toEqual(new Date(newEnd));
+      expect(updated.startTime).toEqual(baseSlot.startTime);
+      expect(slotsRepo.save).toHaveBeenCalled();
+    });
+
+    it('throws when only startTime is supplied and new window is invalid', async () => {
+      slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
+
+      // baseSlot.endTime is '10:00'; setting startTime after that is invalid
+      await expect(
+        service.updateSlot(slotId, {
+          startTime: '2026-06-01T11:00:00.000Z',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 
   describe('deleteSlot', () => {

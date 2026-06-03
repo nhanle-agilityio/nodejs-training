@@ -80,11 +80,21 @@ describe('SlotsCacheService', () => {
       const revive = cache.getJson.mock.calls[0]?.[1];
       expect(revive).toBeDefined();
       const revived = revive!([
-        { ...slot, startTime: slot.startTime.toISOString() },
+        {
+          ...slot,
+          startTime: slot.startTime.toISOString(),
+          endTime: slot.endTime.toISOString(),
+          createdAt: new Date('2026-06-01T08:00:00.000Z').toISOString(),
+          updatedAt: new Date('2026-06-01T08:00:00.000Z').toISOString(),
+          deletedAt: null,
+        },
       ])!;
 
       expect(revived[0].startTime).toBeInstanceOf(Date);
       expect(revived[0].endTime).toBeInstanceOf(Date);
+      expect(revived[0].createdAt).toBeInstanceOf(Date);
+      expect(revived[0].updatedAt).toBeInstanceOf(Date);
+      expect(revived[0].deletedAt).toBeNull();
     });
   });
 
@@ -94,6 +104,16 @@ describe('SlotsCacheService', () => {
 
       expect(cache.setJson).toHaveBeenCalledWith(
         'booking:slots:list:status=closed',
+        [slot],
+        300,
+      );
+    });
+
+    it('writes the "all" key when no filter is provided', async () => {
+      await service.set([slot], {});
+
+      expect(cache.setJson).toHaveBeenCalledWith(
+        'booking:slots:list:all',
         [slot],
         300,
       );

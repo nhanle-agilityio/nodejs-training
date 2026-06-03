@@ -17,6 +17,14 @@ describe('buildQueryKey', () => {
     );
     expect(buildQueryKey('p', { a: 1, b: 2 })).toBe('p:a=1&b=2');
   });
+
+  it('includes zero as a valid param value', () => {
+    expect(buildQueryKey('p', { count: 0 })).toBe('p:count=0');
+  });
+
+  it('includes false as a valid param value', () => {
+    expect(buildQueryKey('p', { flag: false })).toBe('p:flag=false');
+  });
 });
 
 describe('RedisCacheService', () => {
@@ -71,6 +79,12 @@ describe('RedisCacheService', () => {
 
     it('falls back to null when Redis read fails', async () => {
       redis.get.mockRejectedValue(new Error('connection lost'));
+
+      await expect(service.getJson('k')).resolves.toBeNull();
+    });
+
+    it('falls back to null when cached value is not valid JSON', async () => {
+      redis.get.mockResolvedValue('not-json');
 
       await expect(service.getJson('k')).resolves.toBeNull();
     });

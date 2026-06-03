@@ -9,7 +9,7 @@ describe('SlotsController', () => {
 
   const slot = {
     id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    title: 'Slot Tile 1',
+    title: 'Slot Title 1',
     startTime: new Date('2026-06-01T10:00:00.000Z'),
     endTime: new Date('2026-06-01T11:00:00.000Z'),
     price: 40,
@@ -33,72 +33,82 @@ describe('SlotsController', () => {
     controller = moduleRef.get(SlotsController);
   });
 
-  it('getAllSlots maps entities to DTOs', async () => {
-    slotsService.getAllSlots.mockResolvedValue([slot]);
+  describe('getAllSlots', () => {
+    it('maps entities to DTOs and passes query to service', async () => {
+      slotsService.getAllSlots.mockResolvedValue([slot]);
 
-    const dto = await controller.getAllSlots({ status: SlotStatus.Open });
+      const dto = await controller.getAllSlots({ status: SlotStatus.Open });
 
-    expect(slotsService.getAllSlots).toHaveBeenCalledWith({
-      status: SlotStatus.Open,
-    });
-    expect(dto[0]).toMatchObject({
-      id: slot.id,
-      title: slot.title,
-      status: slot.status,
+      expect(slotsService.getAllSlots).toHaveBeenCalledWith({
+        status: SlotStatus.Open,
+      });
+      expect(dto[0]).toMatchObject({
+        id: slot.id,
+        title: slot.title,
+        status: slot.status,
+      });
     });
   });
 
-  it('getSlotById delegates to service', async () => {
-    slotsService.getSlotById.mockResolvedValue(slot);
+  describe('getSlotById', () => {
+    it('delegates to service and returns mapped DTO', async () => {
+      slotsService.getSlotById.mockResolvedValue(slot);
 
-    const dto = await controller.getSlotById(slot.id);
+      const dto = await controller.getSlotById(slot.id);
 
-    expect(slotsService.getSlotById).toHaveBeenCalledWith(slot.id);
-    expect(dto).toMatchObject({ id: slot.id });
+      expect(slotsService.getSlotById).toHaveBeenCalledWith(slot.id);
+      expect(dto).toMatchObject({ id: slot.id });
+    });
   });
 
-  it('createSlot delegates to service', async () => {
-    const body = {
-      title: 'Slot Name',
-      startTime: '2026-07-01T12:00:00.000Z',
-      endTime: '2026-07-01T13:00:00.000Z',
-      price: 20,
-    };
-    slotsService.createSlot.mockResolvedValue({
-      ...slot,
-      title: body.title,
-      startTime: new Date(body.startTime),
-      endTime: new Date(body.endTime),
-      price: body.price,
+  describe('createSlot', () => {
+    it('delegates to service and returns mapped DTO', async () => {
+      const body = {
+        title: 'Slot Name',
+        startTime: '2026-07-01T12:00:00.000Z',
+        endTime: '2026-07-01T13:00:00.000Z',
+        price: 20,
+      };
+      slotsService.createSlot.mockResolvedValue({
+        ...slot,
+        title: body.title,
+        startTime: new Date(body.startTime),
+        endTime: new Date(body.endTime),
+        price: body.price,
+      });
+
+      const dto = await controller.createSlot(body);
+
+      expect(slotsService.createSlot).toHaveBeenCalledWith(body);
+      expect(dto.title).toBe(body.title);
     });
-
-    const dto = await controller.createSlot(body);
-
-    expect(slotsService.createSlot).toHaveBeenCalledWith(body);
-    expect(dto.title).toBe(body.title);
   });
 
-  it('updateSlot delegates to service', async () => {
-    slotsService.updateSlot.mockResolvedValue({
-      ...slot,
-      title: 'Slot Name Updated',
-    });
+  describe('updateSlot', () => {
+    it('delegates to service and returns mapped DTO', async () => {
+      slotsService.updateSlot.mockResolvedValue({
+        ...slot,
+        title: 'Slot Name Updated',
+      });
 
-    const dto = await controller.updateSlot(slot.id, {
-      title: 'Slot Name Updated',
-    });
+      const dto = await controller.updateSlot(slot.id, {
+        title: 'Slot Name Updated',
+      });
 
-    expect(slotsService.updateSlot).toHaveBeenCalledWith(slot.id, {
-      title: 'Slot Name Updated',
+      expect(slotsService.updateSlot).toHaveBeenCalledWith(slot.id, {
+        title: 'Slot Name Updated',
+      });
+      expect(dto.title).toBe('Slot Name Updated');
     });
-    expect(dto.title).toBe('Slot Name Updated');
   });
 
-  it('deleteSlot delegates to service', async () => {
-    slotsService.deleteSlot.mockResolvedValue(undefined);
+  describe('deleteSlot', () => {
+    it('delegates to service', async () => {
+      slotsService.deleteSlot.mockResolvedValue(undefined);
 
-    await controller.deleteSlot(slot.id);
+      await controller.deleteSlot(slot.id);
 
-    expect(slotsService.deleteSlot).toHaveBeenCalledWith(slot.id);
+      expect(slotsService.deleteSlot).toHaveBeenCalledWith(slot.id);
+    });
   });
 });
