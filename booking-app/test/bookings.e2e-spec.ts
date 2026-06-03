@@ -13,7 +13,7 @@ describe('Bookings (e2e)', () => {
   let dataSource: DataSource;
 
   beforeAll(async () => {
-    app = (await createTestApp()) as INestApplication<App>;
+    ({ app } = await createTestApp());
     dataSource = app.get(DataSource);
   });
 

@@ -1,8 +1,12 @@
 import { DataSource, Repository } from 'typeorm';
+import type Redis from 'ioredis';
 import { Booking } from '../src/bookings/booking.entity';
 import { Payment } from '../src/payments/payment.entity';
 import { Slot, SlotStatus } from '../src/slots/slot.entity';
 import { User } from '../src/users/user.entity';
+import { REDIS_CLIENT } from '../src/redis/redis.tokens';
+
+export const SLOTS_LIST_CACHE_KEY = 'booking:slots:list:all';
 
 export const saveOpenSlot = async (
   slotRepo: Repository<Slot>,
@@ -27,3 +31,23 @@ export const cleanBookingE2eTables = async (dataSource: DataSource) => {
   await dataSource.createQueryBuilder().delete().from(Slot).execute();
   await dataSource.createQueryBuilder().delete().from(User).execute();
 };
+
+export const flushRedisTestKeys = async (redis: Redis): Promise<void> => {
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(
+      cursor,
+      'MATCH',
+      'booking:*',
+      'COUNT',
+      100,
+    );
+    cursor = next;
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+  } while (cursor !== '0');
+};
+
+export const getTestRedis = (app: { get: (token: symbol) => Redis }): Redis =>
+  app.get(REDIS_CLIENT);
