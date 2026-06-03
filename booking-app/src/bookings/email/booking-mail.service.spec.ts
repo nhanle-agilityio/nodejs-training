@@ -28,7 +28,7 @@ describe('BookingMailService', () => {
     to: 'a@b',
     recipientName: 'A',
     bookingId: 'bid',
-    slotTitle: 'Yoga',
+    slotTitle: 'Slot Title Name',
     slotStartIso: new Date().toISOString(),
     slotEndIso: new Date().toISOString(),
   };
@@ -56,7 +56,34 @@ describe('BookingMailService', () => {
     expect(instance.emails.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'a@b',
-        subject: expect.stringContaining('Yoga') as string,
+        subject: expect.stringContaining('Slot Title Name') as string,
+      }),
+    );
+  });
+
+  it('live mode sendBookingCancelled sends email with slot title in subject', async () => {
+    const { Resend } = requireResendMock();
+    Resend.mockClear();
+
+    const transport = new ResendMailService(
+      cfg({ mode: 'live', resendApiKey: 're_key', from: 'F <f@test>' }),
+    );
+    const service = new BookingMailService(transport);
+
+    await expect(
+      service.sendBookingCancelled({
+        ...sampleInput,
+        cancellationReason: BookingCancellationReason.UserCancelled,
+      }),
+    ).resolves.toBeUndefined();
+
+    const instance = Resend.mock.results[0]?.value as {
+      emails: { send: jest.Mock };
+    };
+    expect(instance.emails.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: sampleInput.to,
+        subject: expect.stringContaining(sampleInput.slotTitle) as string,
       }),
     );
   });

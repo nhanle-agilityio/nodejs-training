@@ -13,4 +13,10 @@ describe('cancellationReasonMessage', () => {
       cancellationReasonMessage(BookingCancellationReason.AdminCancelled),
     ).toContain('administrator');
   });
+
+  it('returns default message for an unknown reason value', () => {
+    expect(
+      cancellationReasonMessage('unknown' as BookingCancellationReason),
+    ).toBe('This booking has been cancelled.');
+  });
 });

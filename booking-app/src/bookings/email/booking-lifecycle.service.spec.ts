@@ -23,7 +23,7 @@ describe('BookingLifecycleService', () => {
     status: BookingStatus.Pending,
     user: { email: 'guest@test.com', name: 'Guest' },
     slot: {
-      title: 'Yoga',
+      title: 'Slot Title Name',
       startTime: new Date('2026-06-15T14:00:00.000Z'),
       endTime: new Date('2026-06-15T15:00:00.000Z'),
     },
@@ -102,5 +102,31 @@ describe('BookingLifecycleService', () => {
       }),
       expect.objectContaining({ jobId: `booking-cancelled-${booking.id}` }),
     );
+  });
+
+  // M6 — onBookingCancelled swallows queue errors
+  it('onBookingCancelled resolves even when emailQueue.add throws', async () => {
+    emailQueue.add.mockRejectedValue(new Error('Queue unavailable'));
+
+    await expect(
+      service.onBookingCancelled(
+        booking,
+        BookingCancellationReason.UserCancelled,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(reminderQueue.removeReminderJob).toHaveBeenCalledWith(booking.id);
+  });
+
+  // M7 — enqueueConfirmationEmail swallows queue errors
+  it('enqueueConfirmationEmail resolves even when emailQueue.add throws', async () => {
+    emailQueue.add.mockRejectedValue(new Error('Queue unavailable'));
+
+    await expect(
+      service.enqueueConfirmationEmail({
+        ...booking,
+        status: BookingStatus.Confirmed,
+      }),
+    ).resolves.toBeUndefined();
   });
 });

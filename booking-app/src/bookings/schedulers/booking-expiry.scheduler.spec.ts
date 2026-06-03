@@ -6,9 +6,17 @@ import { BookingCancellationReason } from '../email/booking-cancellation-reason'
 import { BookingLifecycleService } from '../email/booking-lifecycle.service';
 import { StripeService } from '../../payments/stripe.service';
 import { PendingBookingExpiryScheduler } from './booking-expiry.scheduler';
+import { BOOKING_PAYMENT_PENDING_EXPIRY } from './booking-expiry.constants';
+
+jest.mock('cron', () => ({
+  CronJob: jest.fn().mockImplementation(() => ({
+    start: jest.fn(),
+  })),
+}));
 
 describe('PendingBookingExpiryScheduler', () => {
   let scheduler: PendingBookingExpiryScheduler;
+  let schedulerRegistry: { addCronJob: jest.Mock };
   let dataSource: {
     createQueryBuilder: jest.Mock;
     transaction: jest.Mock;
@@ -25,7 +33,7 @@ describe('PendingBookingExpiryScheduler', () => {
     status: BookingStatus.Cancelled,
     user: { email: 'guest@test.com', name: 'Guest' },
     slot: {
-      title: 'Yoga',
+      title: 'Slot Title Name',
       startTime: new Date('2026-06-15T14:00:00.000Z'),
       endTime: new Date('2026-06-15T15:00:00.000Z'),
     },
@@ -33,6 +41,7 @@ describe('PendingBookingExpiryScheduler', () => {
 
   beforeEach(async () => {
     bookingRepo = { findOne: jest.fn() };
+    schedulerRegistry = { addCronJob: jest.fn() };
     dataSource = {
       createQueryBuilder: jest.fn(),
       transaction: jest.fn(),
@@ -46,7 +55,7 @@ describe('PendingBookingExpiryScheduler', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         PendingBookingExpiryScheduler,
-        { provide: SchedulerRegistry, useValue: { addCronJob: jest.fn() } },
+        { provide: SchedulerRegistry, useValue: schedulerRegistry },
         { provide: DataSource, useValue: dataSource },
         { provide: BookingLifecycleService, useValue: lifecycle },
         { provide: StripeService, useValue: stripe },
@@ -174,6 +183,33 @@ describe('PendingBookingExpiryScheduler', () => {
     expect(stripe.expireCheckoutSession).not.toHaveBeenCalled();
   });
 
+  // M12 — zero candidates
+  it('does nothing when there are no stale candidates', async () => {
+    mockCandidateQuery([]);
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+  });
+
+  // M13 — createdAt still within payment window
+  it('skips booking inside the transaction when createdAt is within the payment window', async () => {
+    mockCandidateQuery([bookingId]);
+    const { save } = mockExpireTransaction({
+      booking: {
+        id: bookingId,
+        status: BookingStatus.Pending,
+        createdAt: new Date(), // just created — not yet stale
+      },
+    });
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(save).not.toHaveBeenCalled();
+    expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+  });
+
   it('skips lifecycle when booking relations cannot be reloaded', async () => {
     mockCandidateQuery([bookingId]);
     mockExpireTransaction({
@@ -188,5 +224,31 @@ describe('PendingBookingExpiryScheduler', () => {
     await scheduler.expireStalePendingBookings();
 
     expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+  });
+
+  describe('onModuleInit', () => {
+    it('registers the pending expiry cron job when enabled', () => {
+      schedulerRegistry.addCronJob.mockClear();
+
+      scheduler.onModuleInit();
+
+      expect(schedulerRegistry.addCronJob).toHaveBeenCalledTimes(1);
+      expect(schedulerRegistry.addCronJob).toHaveBeenCalledWith(
+        'pendingBookingExpiry',
+        expect.any(Object),
+      );
+    });
+
+    it('skips cron registration when disabled', () => {
+      schedulerRegistry.addCronJob.mockClear();
+      (BOOKING_PAYMENT_PENDING_EXPIRY as { enabled: boolean }).enabled = false;
+
+      try {
+        scheduler.onModuleInit();
+        expect(schedulerRegistry.addCronJob).not.toHaveBeenCalled();
+      } finally {
+        (BOOKING_PAYMENT_PENDING_EXPIRY as { enabled: boolean }).enabled = true;
+      }
+    });
   });
 });

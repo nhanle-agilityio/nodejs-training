@@ -117,6 +117,28 @@ describe('BookingReminderQueueService', () => {
     expect(existing.changeDelay).not.toHaveBeenCalled();
   });
 
+  it('replaces failed jobs with a fresh delayed job', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-10T12:00:00.000Z') });
+
+    const existing = {
+      getState: jest.fn().mockResolvedValue('failed'),
+      remove: jest.fn().mockResolvedValue(undefined),
+    };
+    emailQueue.getJob.mockResolvedValue(existing);
+
+    const ok = await service.upsertReminderJob(booking);
+
+    expect(ok).toBe(true);
+    expect(existing.remove).toHaveBeenCalled();
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      JOB_BOOKING_REMINDER,
+      expect.objectContaining({ bookingId: booking.id }),
+      expect.objectContaining({ jobId: `reminder-${booking.id}` }),
+    );
+
+    jest.useRealTimers();
+  });
+
   it('replaces completed jobs with a fresh delayed job', async () => {
     jest.useFakeTimers({ now: new Date('2026-06-10T12:00:00.000Z') });
 
@@ -137,6 +159,16 @@ describe('BookingReminderQueueService', () => {
     );
 
     jest.useRealTimers();
+  });
+
+  it('removeReminderJob resolves when no job exists', async () => {
+    emailQueue.getJob.mockResolvedValue(null);
+
+    await expect(
+      service.removeReminderJob(booking.id),
+    ).resolves.toBeUndefined();
+
+    expect(emailQueue.getJob).toHaveBeenCalledWith(`reminder-${booking.id}`);
   });
 
   it('removeReminderJob skips active jobs', async () => {
@@ -161,5 +193,18 @@ describe('BookingReminderQueueService', () => {
     await service.removeReminderJob(booking.id);
 
     expect(job.remove).toHaveBeenCalled();
+  });
+
+  it('swallows queue errors in upsertReminderJob and returns false', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-10T12:00:00.000Z') });
+
+    emailQueue.getJob.mockResolvedValue(null);
+    emailQueue.add.mockRejectedValue(new Error('Redis unavailable'));
+
+    const ok = await service.upsertReminderJob(booking);
+
+    expect(ok).toBe(false);
+
+    jest.useRealTimers();
   });
 });
