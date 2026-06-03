@@ -4,11 +4,17 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Slot, SlotStatus } from './slot.entity';
 import { SlotsService } from './slots.service';
+import { SlotsCacheService } from './slots-cache.service';
 
 const slotId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 describe('SlotsService', () => {
   let service: SlotsService;
+  let cache: {
+    get: jest.Mock;
+    set: jest.Mock;
+    invalidateAll: jest.Mock;
+  };
   let slotsRepo: jest.Mocked<
     Pick<
       Repository<Slot>,
@@ -26,6 +32,12 @@ describe('SlotsService', () => {
   } as Slot;
 
   beforeEach(async () => {
+    cache = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      invalidateAll: jest.fn().mockResolvedValue(undefined),
+    };
+
     slotsRepo = {
       create: jest.fn().mockImplementation((x) => x as Slot),
       save: jest.fn().mockImplementation((x) => Promise.resolve(x as Slot)),
@@ -38,6 +50,7 @@ describe('SlotsService', () => {
       providers: [
         SlotsService,
         { provide: getRepositoryToken(Slot), useValue: slotsRepo },
+        { provide: SlotsCacheService, useValue: cache },
       ],
     }).compile();
 
@@ -74,10 +87,21 @@ describe('SlotsService', () => {
         status: SlotStatus.Open,
       });
       expect(slotsRepo.save).toHaveBeenCalled();
+      expect(cache.invalidateAll).toHaveBeenCalled();
     });
   });
 
   describe('getAllSlots', () => {
+    it('returns cached slots without querying the database', async () => {
+      cache.get.mockResolvedValue([baseSlot]);
+
+      const result = await service.getAllSlots({});
+
+      expect(result).toEqual([baseSlot]);
+      expect(slotsRepo.find).not.toHaveBeenCalled();
+      expect(cache.set).not.toHaveBeenCalled();
+    });
+
     it('finds all ordered by startTime when no status filter', async () => {
       slotsRepo.find.mockResolvedValue([baseSlot]);
 
@@ -88,6 +112,7 @@ describe('SlotsService', () => {
         order: { startTime: 'ASC' },
       });
       expect(result).toEqual([baseSlot]);
+      expect(cache.set).toHaveBeenCalledWith([baseSlot], {});
     });
 
     it('applies status filter when provided', async () => {
@@ -99,6 +124,7 @@ describe('SlotsService', () => {
         where: { status: SlotStatus.Closed },
         order: { startTime: 'ASC' },
       });
+      expect(cache.set).toHaveBeenCalledWith([], { status: SlotStatus.Closed });
     });
   });
 
@@ -154,6 +180,7 @@ describe('SlotsService', () => {
       expect(updated.price).toBe(99);
       expect(updated.status).toBe(SlotStatus.Closed);
       expect(slotsRepo.save).toHaveBeenCalled();
+      expect(cache.invalidateAll).toHaveBeenCalled();
     });
   });
 
@@ -178,6 +205,7 @@ describe('SlotsService', () => {
       });
 
       await expect(service.deleteSlot(slotId)).resolves.toBeUndefined();
+      expect(cache.invalidateAll).toHaveBeenCalled();
     });
   });
 });

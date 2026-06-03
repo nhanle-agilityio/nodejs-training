@@ -13,6 +13,7 @@ import { Slot, SlotStatus } from '../slots/slot.entity';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
 import { PaymentsService } from '../payments/payments.service';
+import { SlotsCacheService } from '../slots/slots-cache.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -27,6 +28,9 @@ describe('BookingsService', () => {
   let paymentsService: {
     hasRefundablePayment: jest.Mock;
     refundAndCancel: jest.Mock;
+  };
+  let slotsCache: {
+    invalidateAll: jest.Mock;
   };
 
   const bookingId = 'b1111111-1111-1111-1111-111111111111';
@@ -82,6 +86,9 @@ describe('BookingsService', () => {
         status: BookingStatus.Refunded,
       }),
     };
+    slotsCache = {
+      invalidateAll: jest.fn().mockResolvedValue(undefined),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -91,6 +98,7 @@ describe('BookingsService', () => {
         { provide: REDLOCK, useValue: redlock },
         { provide: BookingLifecycleService, useValue: lifecycle },
         { provide: PaymentsService, useValue: paymentsService },
+        { provide: SlotsCacheService, useValue: slotsCache },
       ],
     }).compile();
 
@@ -189,6 +197,7 @@ describe('BookingsService', () => {
         status: BookingStatus.Pending,
       });
       expect(result.status).toBe(BookingStatus.Pending);
+      expect(slotsCache.invalidateAll).toHaveBeenCalled();
       expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
       expect(lock.release).toHaveBeenCalled();
     });
