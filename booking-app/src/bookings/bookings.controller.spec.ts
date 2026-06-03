@@ -90,12 +90,16 @@ describe('BookingsController', () => {
     it('calls service with caller id for normal user', async () => {
       bookingsService.createBooking.mockResolvedValue(pendingBooking);
 
-      await controller.createBooking(user, { slotId });
+      const result = await controller.createBooking(user, { slotId });
 
       expect(bookingsService.createBooking).toHaveBeenCalledWith(
         user.id,
         slotId,
       );
+      expect(result).toMatchObject({
+        id: bookingId,
+        status: BookingStatus.Pending,
+      });
     });
 
     it('calls service with resolved target id for admin', async () => {
@@ -105,13 +109,17 @@ describe('BookingsController', () => {
         userId: targetUser.id,
       });
 
-      await controller.createBooking(admin, { slotId, userId: targetUser.id });
+      const result = await controller.createBooking(admin, {
+        slotId,
+        userId: targetUser.id,
+      });
 
       expect(usersService.findById).toHaveBeenCalledWith(targetUser.id);
       expect(bookingsService.createBooking).toHaveBeenCalledWith(
         targetUser.id,
         slotId,
       );
+      expect(result).toMatchObject({ id: bookingId, userId: targetUser.id });
     });
   });
 

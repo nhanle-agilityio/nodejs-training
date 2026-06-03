@@ -203,6 +203,29 @@ describe('BookingsService', () => {
     });
   });
 
+  describe('getBookingsByUser', () => {
+    it('queries by userId with slot relation ordered by createdAt DESC', async () => {
+      bookingsRepo.find.mockResolvedValue([pendingBooking]);
+
+      const result = await service.getBookingsByUser(userId);
+
+      expect(bookingsRepo.find).toHaveBeenCalledWith({
+        where: { userId },
+        relations: ['slot'],
+        order: { createdAt: 'DESC' },
+      });
+      expect(result).toEqual([pendingBooking]);
+    });
+
+    it('returns empty array when user has no bookings', async () => {
+      bookingsRepo.find.mockResolvedValue([]);
+
+      const result = await service.getBookingsByUser(userId);
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('getAllBookings', () => {
     it('returns paginated rows from findAndCount', async () => {
       bookingsRepo.findAndCount.mockResolvedValue([[pendingBooking], 1]);
@@ -274,7 +297,7 @@ describe('BookingsService', () => {
       expect(result.status).toBe(BookingStatus.Refunded);
     });
 
-    it('refunds pending booking when payment already succeeded', async () => {
+    it('delegates to refundAndCancel and skips direct save when pending booking has a refundable payment', async () => {
       bookingsRepo.findOne.mockResolvedValue({ ...pendingBooking });
       paymentsService.hasRefundablePayment.mockResolvedValue(true);
 
@@ -292,6 +315,18 @@ describe('BookingsService', () => {
         ...pendingBooking,
         status: BookingStatus.Cancelled,
       });
+
+      await expect(
+        service.cancelBooking(bookingId, userId, false),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException when booking is already Refunded', async () => {
+      bookingsRepo.findOne.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Refunded,
+      });
+      paymentsService.hasRefundablePayment.mockResolvedValue(false);
 
       await expect(
         service.cancelBooking(bookingId, userId, false),
