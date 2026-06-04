@@ -18,7 +18,7 @@ describe('SlotsService', () => {
   let slotsRepo: jest.Mocked<
     Pick<
       Repository<Slot>,
-      'create' | 'save' | 'findOne' | 'find' | 'softDelete'
+      'create' | 'save' | 'findOne' | 'findAndCount' | 'softDelete'
     >
   >;
 
@@ -42,7 +42,7 @@ describe('SlotsService', () => {
       create: jest.fn().mockImplementation((x) => x as Slot),
       save: jest.fn().mockImplementation((x) => Promise.resolve(x as Slot)),
       findOne: jest.fn(),
-      find: jest.fn(),
+      findAndCount: jest.fn(),
       softDelete: jest.fn(),
     };
 
@@ -69,7 +69,27 @@ describe('SlotsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('throws when startTime is in the past', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
+
+      await expect(
+        service.createSlot({
+          title: 'Slot Name',
+          startTime: '2026-06-01T10:00:00.000Z',
+          endTime: '2026-06-01T11:00:00.000Z',
+          price: 10,
+        }),
+      ).rejects.toMatchObject({
+        response: { message: 'startTime must be in the future' },
+      });
+
+      jest.useRealTimers();
+    });
+
     it('persists an OPEN slot with parsed times', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-06-01T08:00:00.000Z'));
       const dto = {
         title: 'Slot Name',
         startTime: '2026-06-01T10:00:00.000Z',
@@ -88,43 +108,66 @@ describe('SlotsService', () => {
       });
       expect(slotsRepo.save).toHaveBeenCalled();
       expect(cache.invalidateAll).toHaveBeenCalled();
+
+      jest.useRealTimers();
     });
   });
 
   describe('getAllSlots', () => {
-    it('returns cached slots without querying the database', async () => {
-      cache.get.mockResolvedValue([baseSlot]);
+    it('returns cached page without querying the database', async () => {
+      const cached = {
+        items: [baseSlot],
+        total: 1,
+        page: 1,
+        limit: 20,
+      };
+      cache.get.mockResolvedValue(cached);
 
       const result = await service.getAllSlots({});
 
-      expect(result).toEqual([baseSlot]);
-      expect(slotsRepo.find).not.toHaveBeenCalled();
+      expect(result).toEqual(cached);
+      expect(slotsRepo.findAndCount).not.toHaveBeenCalled();
       expect(cache.set).not.toHaveBeenCalled();
     });
 
-    it('finds all ordered by startTime when no status filter', async () => {
-      slotsRepo.find.mockResolvedValue([baseSlot]);
+    it('finds paginated rows ordered by startTime when cache misses', async () => {
+      slotsRepo.findAndCount.mockResolvedValue([[baseSlot], 1]);
 
-      const result = await service.getAllSlots({});
+      const result = await service.getAllSlots({ page: 1, limit: 20 });
 
-      expect(slotsRepo.find).toHaveBeenCalledWith({
+      expect(slotsRepo.findAndCount).toHaveBeenCalledWith({
         where: {},
-        order: { startTime: 'ASC' },
+        order: { startTime: 'DESC' },
+        skip: 0,
+        take: 20,
       });
-      expect(result).toEqual([baseSlot]);
-      expect(cache.set).toHaveBeenCalledWith([baseSlot], {});
+      expect(result).toEqual({
+        items: [baseSlot],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
+      expect(cache.set).toHaveBeenCalledWith(
+        { items: [baseSlot], total: 1, page: 1, limit: 20 },
+        { page: 1, limit: 20 },
+      );
     });
 
-    it('applies status filter when provided', async () => {
-      slotsRepo.find.mockResolvedValue([]);
+    it('applies status filter', async () => {
+      slotsRepo.findAndCount.mockResolvedValue([[], 0]);
 
-      await service.getAllSlots({ status: SlotStatus.Closed });
-
-      expect(slotsRepo.find).toHaveBeenCalledWith({
-        where: { status: SlotStatus.Closed },
-        order: { startTime: 'ASC' },
+      await service.getAllSlots({
+        status: SlotStatus.Closed,
+        page: 2,
+        limit: 5,
       });
-      expect(cache.set).toHaveBeenCalledWith([], { status: SlotStatus.Closed });
+
+      expect(slotsRepo.findAndCount).toHaveBeenCalledWith({
+        where: { status: SlotStatus.Closed },
+        order: { startTime: 'DESC' },
+        skip: 5,
+        take: 5,
+      });
     });
   });
 
@@ -184,6 +227,8 @@ describe('SlotsService', () => {
     });
 
     it('uses existing endTime when only startTime is supplied', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-06-01T07:00:00.000Z'));
       slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
       const newStart = '2026-06-01T08:00:00.000Z';
 
@@ -194,9 +239,13 @@ describe('SlotsService', () => {
       expect(updated.startTime).toEqual(new Date(newStart));
       expect(updated.endTime).toEqual(baseSlot.endTime);
       expect(slotsRepo.save).toHaveBeenCalled();
+
+      jest.useRealTimers();
     });
 
     it('uses existing startTime when only endTime is supplied', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-06-01T07:00:00.000Z'));
       slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
       const newEnd = '2026-06-01T12:00:00.000Z';
 
@@ -207,17 +256,35 @@ describe('SlotsService', () => {
       expect(updated.endTime).toEqual(new Date(newEnd));
       expect(updated.startTime).toEqual(baseSlot.startTime);
       expect(slotsRepo.save).toHaveBeenCalled();
+
+      jest.useRealTimers();
     });
 
     it('throws when only startTime is supplied and new window is invalid', async () => {
       slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
 
-      // baseSlot.endTime is '10:00'; setting startTime after that is invalid
       await expect(
         service.updateSlot(slotId, {
           startTime: '2026-06-01T11:00:00.000Z',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws when updated window starts in the past', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
+      slotsRepo.findOne.mockResolvedValue({ ...baseSlot });
+
+      await expect(
+        service.updateSlot(slotId, {
+          startTime: '2026-06-01T10:00:00.000Z',
+          endTime: '2026-06-01T11:00:00.000Z',
+        }),
+      ).rejects.toMatchObject({
+        response: { message: 'startTime must be in the future' },
+      });
+
+      jest.useRealTimers();
     });
   });
 

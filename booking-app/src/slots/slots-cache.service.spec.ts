@@ -5,10 +5,7 @@ import { Slot, SlotStatus } from './slot.entity';
 import { SlotsCacheService } from './slots-cache.service';
 
 type GetJsonMock = jest.MockedFunction<
-  (
-    key: string,
-    revive?: (raw: unknown) => Slot[] | null,
-  ) => Promise<Slot[] | null>
+  (key: string, revive?: (raw: unknown) => unknown) => Promise<unknown>
 >;
 
 describe('SlotsCacheService', () => {
@@ -27,6 +24,13 @@ describe('SlotsCacheService', () => {
     price: 49.99,
     status: SlotStatus.Open,
   } as Slot;
+
+  const page = {
+    items: [slot],
+    total: 1,
+    page: 1,
+    limit: 20,
+  };
 
   beforeEach(async () => {
     cache = {
@@ -50,71 +54,65 @@ describe('SlotsCacheService', () => {
   });
 
   describe('get', () => {
-    it('reads the "all" key when no filter is provided', async () => {
-      cache.getJson.mockResolvedValue([slot]);
+    it('reads the default pagination key when no filter is provided', async () => {
+      cache.getJson.mockResolvedValue(page);
 
       const result = await service.get({});
 
-      expect(result).toEqual([slot]);
+      expect(result).toEqual(page);
       expect(cache.getJson).toHaveBeenCalledWith(
-        'booking:slots:list:all',
+        'booking:slots:list:limit=20&page=1',
         expect.any(Function),
       );
     });
 
-    it('reads the status-scoped key when filtered', async () => {
+    it('reads a key that includes status and pagination', async () => {
       cache.getJson.mockResolvedValue(null);
 
-      await service.get({ status: SlotStatus.Open });
+      await service.get({
+        status: SlotStatus.Open,
+        page: 2,
+        limit: 10,
+      });
 
       expect(cache.getJson).toHaveBeenCalledWith(
-        'booking:slots:list:status=open',
+        'booking:slots:list:limit=10&page=2&status=open',
         expect.any(Function),
       );
     });
 
-    it('revives Date fields via the reviver passed to the cache', async () => {
+    it('revives Date fields on cached items', async () => {
       cache.getJson.mockResolvedValue(null);
       await service.get({});
 
       const revive = cache.getJson.mock.calls[0]?.[1];
       expect(revive).toBeDefined();
-      const revived = revive!([
-        {
-          ...slot,
-          startTime: slot.startTime.toISOString(),
-          endTime: slot.endTime.toISOString(),
-          createdAt: new Date('2026-06-01T08:00:00.000Z').toISOString(),
-          updatedAt: new Date('2026-06-01T08:00:00.000Z').toISOString(),
-          deletedAt: null,
-        },
-      ])!;
+      const revived = revive!({
+        ...page,
+        items: [
+          {
+            ...slot,
+            startTime: slot.startTime.toISOString(),
+            endTime: slot.endTime.toISOString(),
+            createdAt: new Date('2026-06-01T08:00:00.000Z').toISOString(),
+            updatedAt: new Date('2026-06-01T08:00:00.000Z').toISOString(),
+            deletedAt: null,
+          },
+        ],
+      }) as typeof page;
 
-      expect(revived[0].startTime).toBeInstanceOf(Date);
-      expect(revived[0].endTime).toBeInstanceOf(Date);
-      expect(revived[0].createdAt).toBeInstanceOf(Date);
-      expect(revived[0].updatedAt).toBeInstanceOf(Date);
-      expect(revived[0].deletedAt).toBeNull();
+      expect(revived.items[0].startTime).toBeInstanceOf(Date);
+      expect(revived.items[0].endTime).toBeInstanceOf(Date);
     });
   });
 
   describe('set', () => {
-    it('writes the status-scoped key with the configured TTL', async () => {
-      await service.set([slot], { status: SlotStatus.Closed });
+    it('writes the scoped key with the configured TTL', async () => {
+      await service.set(page, { status: SlotStatus.Closed, page: 1, limit: 5 });
 
       expect(cache.setJson).toHaveBeenCalledWith(
-        'booking:slots:list:status=closed',
-        [slot],
-        300,
-      );
-    });
-
-    it('writes the "all" key when no filter is provided', async () => {
-      await service.set([slot], {});
-
-      expect(cache.setJson).toHaveBeenCalledWith(
-        'booking:slots:list:all',
-        [slot],
+        'booking:slots:list:limit=5&page=1&status=closed',
+        page,
         300,
       );
     });

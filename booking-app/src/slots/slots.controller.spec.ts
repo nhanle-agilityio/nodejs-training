@@ -35,18 +35,26 @@ describe('SlotsController', () => {
 
   describe('getAllSlots', () => {
     it('maps entities to DTOs and passes query to service', async () => {
-      slotsService.getAllSlots.mockResolvedValue([slot]);
+      slotsService.getAllSlots.mockResolvedValue({
+        items: [slot],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
 
       const dto = await controller.getAllSlots({ status: SlotStatus.Open });
 
       expect(slotsService.getAllSlots).toHaveBeenCalledWith({
         status: SlotStatus.Open,
       });
-      expect(dto[0]).toMatchObject({
+      expect(dto.items[0]).toMatchObject({
         id: slot.id,
         title: slot.title,
         status: slot.status,
       });
+      expect(dto.total).toBe(1);
+      expect(dto.page).toBe(1);
+      expect(dto.limit).toBe(20);
     });
   });
 
