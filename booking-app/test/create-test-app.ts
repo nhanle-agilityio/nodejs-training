@@ -39,7 +39,7 @@ export const createTestApp = async (
     exclude: ['webhooks/(.*)', 'health', ...BULL_BOARD_PREFIX_EXCLUSIONS],
   });
   app.useGlobalInterceptors(new TransformInterceptor());
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalFilters(new GlobalExceptionFilter('test'));
 
   await app.init();
 

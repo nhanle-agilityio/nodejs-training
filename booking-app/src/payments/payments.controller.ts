@@ -1,4 +1,10 @@
-import { Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import {
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -15,9 +21,11 @@ export class PaymentsController {
   @Post(':bookingId/checkout')
   @ApiCreatedResponse({ type: CheckoutSessionResponseDto })
   async createCheckoutSession(
-    @CurrentUser() user: User,
+    @CurrentUser() user: User | undefined,
     @Param('bookingId', ParseUUIDPipe) bookingId: string,
   ): Promise<CheckoutSessionResponseDto> {
+    if (!user) throw new UnauthorizedException();
+
     const isAdmin = user.role === UserRole.Admin;
     const session = await this.paymentsService.createCheckoutSession(
       bookingId,

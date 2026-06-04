@@ -16,11 +16,12 @@ async function bootstrap() {
     exclude: ['webhooks/(.*)', 'health', ...BULL_BOARD_PREFIX_EXCLUSIONS],
   });
   app.useGlobalInterceptors(new TransformInterceptor());
-  app.useGlobalFilters(new GlobalExceptionFilter());
 
   const config = app.get(ConfigService<AppConfig, true>);
   const env = config.get('app.env', { infer: true });
   const port = config.get('app.port', { infer: true });
+
+  app.useGlobalFilters(new GlobalExceptionFilter(env));
 
   if (env !== 'production') {
     const swaggerConfig = new DocumentBuilder()

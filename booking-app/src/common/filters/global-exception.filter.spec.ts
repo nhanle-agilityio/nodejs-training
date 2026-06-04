@@ -46,7 +46,7 @@ describe('GlobalExceptionFilter', () => {
   let filter: GlobalExceptionFilter;
 
   beforeEach(() => {
-    filter = new GlobalExceptionFilter();
+    filter = new GlobalExceptionFilter('test');
   });
 
   describe('HttpException', () => {
@@ -120,16 +120,10 @@ describe('GlobalExceptionFilter', () => {
   });
 
   describe('unknown errors', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-
-    afterEach(() => {
-      process.env.NODE_ENV = originalNodeEnv;
-    });
-
     it('hides the error message in production', () => {
-      process.env.NODE_ENV = 'production';
+      const productionFilter = new GlobalExceptionFilter('production');
       const { host, response } = makeHost();
-      filter.catch(new Error('internal secret'), host);
+      productionFilter.catch(new Error('internal secret'), host);
 
       expect(response.status).toHaveBeenCalledWith(
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -140,7 +134,6 @@ describe('GlobalExceptionFilter', () => {
     });
 
     it('exposes the error message outside production', () => {
-      process.env.NODE_ENV = 'development';
       const { host, response } = makeHost();
       filter.catch(new Error('something went wrong'), host);
 

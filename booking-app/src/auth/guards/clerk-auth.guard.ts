@@ -15,11 +15,15 @@ import { UsersService } from '../../users/users.service';
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
+  private readonly isTestEnv: boolean;
+
   constructor(
     private reflector: Reflector,
     private config: ConfigService<AppConfig, true>,
     private users: UsersService,
-  ) {}
+  ) {
+    this.isTestEnv = config.get('app.env', { infer: true }) === 'test';
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -31,7 +35,7 @@ export class ClerkAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
     // Test: resolve user via header (no Clerk) - only for testing purposes.
-    if (process.env.NODE_ENV === 'test') {
+    if (this.isTestEnv) {
       const raw = req.headers['x-test-user-id'];
       const userId = Array.isArray(raw) ? raw[0] : raw;
       if (!userId || typeof userId !== 'string') {

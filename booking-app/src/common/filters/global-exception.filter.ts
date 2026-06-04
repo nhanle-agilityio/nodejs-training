@@ -13,6 +13,8 @@ import { QueryFailedError } from 'typeorm';
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
 
+  constructor(private readonly env: string) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -84,7 +86,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       error: 'InternalServerError',
       message:
-        process.env.NODE_ENV === 'production'
+        this.env === 'production'
           ? 'Internal server error'
           : ((exception as Error)?.message ?? 'Unknown error'),
     };
