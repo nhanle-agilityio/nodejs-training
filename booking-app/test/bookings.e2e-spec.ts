@@ -3,7 +3,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { Booking, BookingStatus } from '../src/bookings/booking.entity';
-import { Slot } from '../src/slots/slot.entity';
+import { Slot, SlotStatus } from '../src/slots/slot.entity';
 import { User, UserRole } from '../src/users/user.entity';
 import { cleanBookingE2eTables, saveOpenSlot } from './bookings-e2e-helpers';
 import { createTestApp } from './create-test-app';
@@ -59,6 +59,38 @@ describe('Bookings (e2e)', () => {
       .expect(409);
   });
 
+  it('POST /api/bookings rejects a slot that has already started', async () => {
+    const userRepo = dataSource.getRepository(User);
+    const slotRepo = dataSource.getRepository(Slot);
+
+    const user = await userRepo.save(
+      userRepo.create({
+        clerkId: `e2e_past_${Date.now()}`,
+        email: `e2e-past-${Date.now()}@test.local`,
+        name: 'Past Slot User',
+        role: UserRole.User,
+      }),
+    );
+
+    const pastStart = new Date(Date.now() - 60 * 60 * 1000);
+    const pastEnd = new Date(pastStart.getTime() + 60 * 60 * 1000);
+    const slot = await slotRepo.save(
+      slotRepo.create({
+        title: 'Past slot',
+        startTime: pastStart,
+        endTime: pastEnd,
+        price: 25,
+        status: SlotStatus.Open,
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/bookings')
+      .set('x-test-user-id', user.id)
+      .send({ slotId: slot.id })
+      .expect(400);
+  });
+
   it('GET /api/bookings/me lists only current user bookings', async () => {
     const userRepo = dataSource.getRepository(User);
     const slotRepo = dataSource.getRepository(Slot);
@@ -85,9 +117,11 @@ describe('Bookings (e2e)', () => {
       .set('x-test-user-id', user.id)
       .expect(200);
 
-    const body = res.body as { data: { id: string }[] };
-    expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data).toHaveLength(1);
+    const body = res.body as {
+      data: { items: { id: string }[]; total: number };
+    };
+    expect(body.data.items).toHaveLength(1);
+    expect(body.data.total).toBe(1);
   });
 
   it('GET /api/bookings/:id returns 404 for another user', async () => {

@@ -6,13 +6,13 @@ import { Slot, SlotStatus } from '../src/slots/slot.entity';
 import { User } from '../src/users/user.entity';
 import { REDIS_CLIENT } from '../src/redis/redis.tokens';
 
-export const SLOTS_LIST_CACHE_KEY = 'booking:slots:list:all';
+export const SLOTS_LIST_CACHE_KEY = 'booking:slots:list:limit=20&page=1';
 
 export const saveOpenSlot = async (
   slotRepo: Repository<Slot>,
   title = 'E2E slot',
 ): Promise<Slot> => {
-  const start = new Date();
+  const start = new Date(Date.now() + 60 * 60 * 1000);
   const end = new Date(start.getTime() + 60 * 60 * 1000);
   return slotRepo.save(
     slotRepo.create({

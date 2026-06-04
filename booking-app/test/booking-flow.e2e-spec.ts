@@ -68,8 +68,8 @@ describe('Booking flow (e2e)', () => {
     const slot = await saveOpenSlot(slotRepo, 'Flow slot');
 
     const slotsRes = await request(server).get('/api/slots').expect(200);
-    const slotsBody = slotsRes.body as { data: { id: string }[] };
-    expect(slotsBody.data.some((s) => s.id === slot.id)).toBe(true);
+    const slotsBody = slotsRes.body as { data: { items: { id: string }[] } };
+    expect(slotsBody.data.items.some((s) => s.id === slot.id)).toBe(true);
 
     expect(await redis.get(SLOTS_LIST_CACHE_KEY)).not.toBeNull();
 
