@@ -26,6 +26,8 @@ import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 import { SlotResponseDto } from './dto/slot-response.dto';
 import { SlotsQueryDto } from './dto/slots-query.dto';
+import { PaginatedSlotsResponseDto } from './dto/paginated-slots-response.dto';
+import { mapPaginatedItems } from '../common/pagination/map-paginated-items';
 import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('slots')
@@ -35,10 +37,13 @@ export class SlotsController {
 
   @Public()
   @Get()
-  @ApiOkResponse({ type: [SlotResponseDto] })
-  async getAllSlots(@Query() query: SlotsQueryDto): Promise<SlotResponseDto[]> {
-    const slots = await this.slotsService.getAllSlots(query);
-    return slots.map((s) =>
+  @ApiOkResponse({ type: PaginatedSlotsResponseDto })
+  async getAllSlots(
+    @Query() query: SlotsQueryDto,
+  ): Promise<PaginatedSlotsResponseDto> {
+    const result = await this.slotsService.getAllSlots(query);
+
+    return mapPaginatedItems(result, (s) =>
       plainToInstance(SlotResponseDto, s, { excludeExtraneousValues: true }),
     );
   }
@@ -50,6 +55,7 @@ export class SlotsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<SlotResponseDto> {
     const slot = await this.slotsService.getSlotById(id);
+
     return plainToInstance(SlotResponseDto, slot, {
       excludeExtraneousValues: true,
     });
@@ -61,6 +67,7 @@ export class SlotsController {
   @ApiCreatedResponse({ type: SlotResponseDto })
   async createSlot(@Body() dto: CreateSlotDto): Promise<SlotResponseDto> {
     const slot = await this.slotsService.createSlot(dto);
+
     return plainToInstance(SlotResponseDto, slot, {
       excludeExtraneousValues: true,
     });
@@ -75,6 +82,7 @@ export class SlotsController {
     @Body() dto: UpdateSlotDto,
   ): Promise<SlotResponseDto> {
     const slot = await this.slotsService.updateSlot(id, dto);
+
     return plainToInstance(SlotResponseDto, slot, {
       excludeExtraneousValues: true,
     });

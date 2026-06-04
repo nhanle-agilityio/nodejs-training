@@ -26,7 +26,9 @@ import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingResponseDto } from './dto/booking-response.dto';
 import { BookingsQueryDto } from './dto/bookings-query.dto';
+import { MyBookingsQueryDto } from './dto/my-bookings-query.dto';
 import { PaginatedBookingsResponseDto } from './dto/paginated-bookings-response.dto';
+import { mapPaginatedItems } from '../common/pagination/map-paginated-items';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
@@ -83,39 +85,34 @@ export class BookingsController {
   @Get()
   @CheckPolicies((ability) => ability.can(Action.Manage, Booking))
   @ApiOkResponse({ type: PaginatedBookingsResponseDto })
-  async findAll(
+  async getBookings(
     @Query() query: BookingsQueryDto,
   ): Promise<PaginatedBookingsResponseDto> {
-    const { items, total } = await this.bookingsService.getAllBookings({
-      status: query.status,
-      userId: query.userId,
-      slotId: query.slotId,
-      page: query.page ?? 1,
-      limit: query.limit ?? 20,
-    });
+    const result = await this.bookingsService.getAllBookings(query);
 
-    return {
-      items: items.map((b) =>
-        plainToInstance(BookingResponseDto, b, {
-          excludeExtraneousValues: true,
-        }),
-      ),
-      total,
-      page: query.page ?? 1,
-      limit: query.limit ?? 20,
-    };
+    return mapPaginatedItems(result, (b) =>
+      plainToInstance(BookingResponseDto, b, {
+        excludeExtraneousValues: true,
+      }),
+    );
   }
 
   @Get('me')
-  @ApiOkResponse({ type: [BookingResponseDto] })
-  async findMyBookings(
+  @ApiOkResponse({ type: PaginatedBookingsResponseDto })
+  async getMyBookings(
     @CurrentUser() user: User | undefined,
-  ): Promise<BookingResponseDto[]> {
+    @Query() query: MyBookingsQueryDto,
+  ): Promise<PaginatedBookingsResponseDto> {
     if (!user) throw new UnauthorizedException();
 
-    const bookings = await this.bookingsService.getBookingsByUser(user.id);
+    const result = await this.bookingsService.getBookingsByUser({
+      userId: user.id,
+      status: query.status,
+      page: query.page,
+      limit: query.limit,
+    });
 
-    return bookings.map((b) =>
+    return mapPaginatedItems(result, (b) =>
       plainToInstance(BookingResponseDto, b, {
         excludeExtraneousValues: true,
       }),

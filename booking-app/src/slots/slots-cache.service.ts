@@ -1,18 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/configuration';
+import { PaginatedResult } from '../common/pagination/map-paginated-items';
+import { resolvePagination } from '../common/pagination/resolve-pagination';
 import { RedisCacheService, buildQueryKey } from '../redis/redis-cache.service';
 import { Slot } from './slot.entity';
 import { SlotsQueryDto } from './dto/slots-query.dto';
 
 const CACHE_KEY_PREFIX = 'booking:slots:list';
 
-// Build a stable cache key from a prefix plus every provided param
 const slotsKey = (query: SlotsQueryDto): string => {
-  return buildQueryKey(CACHE_KEY_PREFIX, { ...query });
+  const { page, limit } = resolvePagination(query);
+
+  return buildQueryKey(CACHE_KEY_PREFIX, {
+    status: query.status,
+    page,
+    limit,
+  });
 };
 
-// Parse ISO strings to Date objects
 const reviveSlots = (raw: unknown): Slot[] => {
   const toDate = (value: unknown): Date | null =>
     value == null ? (value as null) : new Date(value as string);
@@ -27,6 +33,15 @@ const reviveSlots = (raw: unknown): Slot[] => {
   })) as Slot[];
 };
 
+const revivePaginatedSlots = (raw: unknown): PaginatedResult<Slot> => {
+  const data = raw as PaginatedResult<Slot>;
+
+  return {
+    ...data,
+    items: reviveSlots(data.items),
+  };
+};
+
 @Injectable()
 export class SlotsCacheService {
   private readonly ttlSec: number;
@@ -38,12 +53,15 @@ export class SlotsCacheService {
     this.ttlSec = config.get('slotsCache.ttl', { infer: true });
   }
 
-  get(query: SlotsQueryDto): Promise<Slot[] | null> {
-    return this.cache.getJson<Slot[]>(slotsKey(query), reviveSlots);
+  get(query: SlotsQueryDto): Promise<PaginatedResult<Slot> | null> {
+    return this.cache.getJson<PaginatedResult<Slot>>(
+      slotsKey(query),
+      revivePaginatedSlots,
+    );
   }
 
-  set(slots: Slot[], query: SlotsQueryDto): Promise<void> {
-    return this.cache.setJson(slotsKey(query), slots, this.ttlSec);
+  set(result: PaginatedResult<Slot>, query: SlotsQueryDto): Promise<void> {
+    return this.cache.setJson(slotsKey(query), result, this.ttlSec);
   }
 
   invalidateAll(): Promise<void> {

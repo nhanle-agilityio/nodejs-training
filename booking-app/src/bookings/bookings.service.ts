@@ -15,7 +15,11 @@ import { REDLOCK } from '../redis/redis.module';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
 import { PaymentsService } from '../payments/payments.service';
+import { resolvePagination } from '../common/pagination/resolve-pagination';
 import { SlotsCacheService } from '../slots/slots-cache.service';
+import { BookingsQueryDto } from './dto/bookings-query.dto';
+import { MyBookingsQueryDto } from './dto/my-bookings-query.dto';
+import { PaginatedResult } from '../common/pagination/map-paginated-items';
 
 @Injectable()
 export class BookingsService {
@@ -60,6 +64,11 @@ export class BookingsService {
         if (slot.status !== SlotStatus.Open) {
           throw new BadRequestException('Slot is not open for booking');
         }
+        if (slot.startTime <= new Date()) {
+          throw new BadRequestException(
+            'Cannot book a slot that has already started',
+          );
+        }
 
         // Check for existing active booking on this slot
         const existing = await manager.findOne(Booking, {
@@ -94,35 +103,47 @@ export class BookingsService {
     }
   }
 
-  async getAllBookings(options: {
-    status?: BookingStatus;
-    userId?: string;
-    slotId?: string;
-    page: number;
-    limit: number;
-  }): Promise<{ items: Booking[]; total: number }> {
+  async getAllBookings(
+    query: Pick<
+      BookingsQueryDto,
+      'status' | 'userId' | 'slotId' | 'page' | 'limit'
+    >,
+  ): Promise<PaginatedResult<Booking>> {
+    const { page, limit, skip, take } = resolvePagination(query);
     const where: FindOptionsWhere<Booking> = {};
-    if (options.status) where.status = options.status;
-    if (options.userId) where.userId = options.userId;
-    if (options.slotId) where.slotId = options.slotId;
+    if (query.status) where.status = query.status;
+    if (query.userId) where.userId = query.userId;
+    if (query.slotId) where.slotId = query.slotId;
 
     const [items, total] = await this.bookings.findAndCount({
       where,
       relations: ['slot', 'user'],
       order: { createdAt: 'DESC' },
-      skip: (options.page - 1) * options.limit,
-      take: options.limit,
+      skip,
+      take,
     });
 
-    return { items, total };
+    return { items, total, page, limit };
   }
 
-  async getBookingsByUser(userId: string): Promise<Booking[]> {
-    return this.bookings.find({
-      where: { userId },
+  async getBookingsByUser(
+    query: Pick<MyBookingsQueryDto, 'status' | 'page' | 'limit'> & {
+      userId: string;
+    },
+  ): Promise<PaginatedResult<Booking>> {
+    const { page, limit, skip, take } = resolvePagination(query);
+    const where: FindOptionsWhere<Booking> = { userId: query.userId };
+    if (query.status) where.status = query.status;
+
+    const [items, total] = await this.bookings.findAndCount({
+      where,
       relations: ['slot'],
       order: { createdAt: 'DESC' },
+      skip,
+      take,
     });
+
+    return { items, total, page, limit };
   }
 
   async getBookingById(id: string): Promise<Booking> {

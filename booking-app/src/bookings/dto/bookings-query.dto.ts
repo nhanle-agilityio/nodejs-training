@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { BookingStatus } from '../booking.entity';
 
-export class BookingsQueryDto {
+export class BookingsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: BookingStatus })
   @IsOptional()
   @IsEnum(BookingStatus)
@@ -18,19 +18,4 @@ export class BookingsQueryDto {
   @IsOptional()
   @IsUUID()
   slotId?: string;
-
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number = 20;
 }
