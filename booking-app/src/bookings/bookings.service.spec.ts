@@ -49,8 +49,8 @@ describe('BookingsService', () => {
     id: slotId,
     status: SlotStatus.Open,
     title: 'Slot Title 1',
-    startTime: new Date('2026-01-02T10:00:00.000Z'),
-    endTime: new Date('2026-01-02T11:00:00.000Z'),
+    startTime: new Date('2026-12-01T10:00:00.000Z'),
+    endTime: new Date('2026-12-01T11:00:00.000Z'),
   } as Slot;
 
   const bookingRowForEmail = {
@@ -167,6 +167,21 @@ describe('BookingsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('throws BadRequestException when slot startTime is in the past', async () => {
+      mockTransactionManager({
+        slot: {
+          ...openSlot,
+          startTime: new Date('2020-01-01T10:00:00.000Z'),
+        },
+      });
+
+      await expect(service.createBooking(userId, slotId)).rejects.toMatchObject(
+        {
+          response: { message: 'Cannot book a slot that has already started' },
+        },
+      );
+    });
+
     it('throws ConflictException when an active booking already exists', async () => {
       mockTransactionManager({
         existingBooking: {
@@ -204,25 +219,46 @@ describe('BookingsService', () => {
   });
 
   describe('getBookingsByUser', () => {
-    it('queries by userId with slot relation ordered by createdAt DESC', async () => {
-      bookingsRepo.find.mockResolvedValue([pendingBooking]);
+    it('returns paginated rows for user with optional status filter', async () => {
+      bookingsRepo.findAndCount.mockResolvedValue([[pendingBooking], 1]);
 
-      const result = await service.getBookingsByUser(userId);
+      const result = await service.getBookingsByUser({
+        userId,
+        status: BookingStatus.Pending,
+        page: 2,
+        limit: 10,
+      });
 
-      expect(bookingsRepo.find).toHaveBeenCalledWith({
-        where: { userId },
+      expect(bookingsRepo.findAndCount).toHaveBeenCalledWith({
+        where: { userId, status: BookingStatus.Pending },
         relations: ['slot'],
         order: { createdAt: 'DESC' },
+        skip: 10,
+        take: 10,
       });
-      expect(result).toEqual([pendingBooking]);
+      expect(result).toEqual({
+        items: [pendingBooking],
+        total: 1,
+        page: 2,
+        limit: 10,
+      });
     });
 
-    it('returns empty array when user has no bookings', async () => {
-      bookingsRepo.find.mockResolvedValue([]);
+    it('returns empty page when user has no bookings', async () => {
+      bookingsRepo.findAndCount.mockResolvedValue([[], 0]);
 
-      const result = await service.getBookingsByUser(userId);
+      const result = await service.getBookingsByUser({
+        userId,
+        page: 1,
+        limit: 20,
+      });
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
     });
   });
 
@@ -235,7 +271,19 @@ describe('BookingsService', () => {
         limit: 10,
       });
 
-      expect(result).toEqual({ items: [pendingBooking], total: 1 });
+      expect(bookingsRepo.findAndCount).toHaveBeenCalledWith({
+        where: {},
+        relations: ['slot', 'user'],
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result).toEqual({
+        items: [pendingBooking],
+        total: 1,
+        page: 1,
+        limit: 10,
+      });
     });
   });
 

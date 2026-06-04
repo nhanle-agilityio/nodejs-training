@@ -46,7 +46,9 @@ describe('BookingsController', () => {
     bookingsService = {
       createBooking: jest.fn(),
       getAllBookings: jest.fn(),
-      getBookingsByUser: jest.fn(),
+      getBookingsByUser: jest
+        .fn()
+        .mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 }),
       getBookingById: jest.fn(),
       cancelBooking: jest.fn(),
     };
@@ -123,66 +125,100 @@ describe('BookingsController', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('getBookings', () => {
     it('passes query through to service with defaults', async () => {
       bookingsService.getAllBookings.mockResolvedValue({
         items: [pendingBooking],
         total: 1,
+        page: 2,
+        limit: 5,
       });
 
-      const result = await controller.findAll({
+      const query = {
         status: BookingStatus.Pending,
         userId: user.id,
         slotId,
         page: 2,
         limit: 5,
-      });
+      };
+      const result = await controller.getBookings(query);
 
-      expect(bookingsService.getAllBookings).toHaveBeenCalledWith({
-        status: BookingStatus.Pending,
-        userId: user.id,
-        slotId,
-        page: 2,
-        limit: 5,
-      });
+      expect(bookingsService.getAllBookings).toHaveBeenCalledWith(query);
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
       expect(result.page).toBe(2);
       expect(result.limit).toBe(5);
     });
 
-    it('defaults page and limit', async () => {
-      bookingsService.getAllBookings.mockResolvedValue({ items: [], total: 0 });
-
-      const result = await controller.findAll({});
-
-      expect(bookingsService.getAllBookings).toHaveBeenCalledWith({
-        status: undefined,
-        userId: undefined,
-        slotId: undefined,
+    it('passes through pagination metadata from service', async () => {
+      bookingsService.getAllBookings.mockResolvedValue({
+        items: [],
+        total: 0,
         page: 1,
         limit: 20,
       });
+
+      const result = await controller.getBookings({});
+
+      expect(bookingsService.getAllBookings).toHaveBeenCalledWith({});
       expect(result.page).toBe(1);
       expect(result.limit).toBe(20);
     });
   });
 
-  describe('findMyBookings', () => {
+  describe('getMyBookings', () => {
     it('throws when user missing', async () => {
-      await expect(controller.findMyBookings(undefined)).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      await expect(
+        controller.getMyBookings(undefined, {}),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
-    it('returns mapped bookings', async () => {
-      bookingsService.getBookingsByUser.mockResolvedValue([pendingBooking]);
+    it('returns paginated mapped bookings', async () => {
+      bookingsService.getBookingsByUser.mockResolvedValue({
+        items: [pendingBooking],
+        total: 1,
+        page: 2,
+        limit: 5,
+      });
 
-      const dto = await controller.findMyBookings(user);
+      const query = {
+        status: BookingStatus.Pending,
+        page: 2,
+        limit: 5,
+      };
+      const dto = await controller.getMyBookings(user, query);
 
-      expect(bookingsService.getBookingsByUser).toHaveBeenCalledWith(user.id);
-      expect(dto).toHaveLength(1);
-      expect(dto[0]).toMatchObject({ id: bookingId });
+      expect(bookingsService.getBookingsByUser).toHaveBeenCalledWith({
+        userId: user.id,
+        status: BookingStatus.Pending,
+        page: 2,
+        limit: 5,
+      });
+      expect(dto.items).toHaveLength(1);
+      expect(dto.items[0]).toMatchObject({ id: bookingId });
+      expect(dto.total).toBe(1);
+      expect(dto.page).toBe(2);
+      expect(dto.limit).toBe(5);
+    });
+
+    it('passes through pagination metadata from service', async () => {
+      bookingsService.getBookingsByUser.mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
+
+      const dto = await controller.getMyBookings(user, {});
+
+      expect(bookingsService.getBookingsByUser).toHaveBeenCalledWith({
+        userId: user.id,
+        status: undefined,
+        page: undefined,
+        limit: undefined,
+      });
+      expect(dto.page).toBe(1);
+      expect(dto.limit).toBe(20);
     });
   });
 
