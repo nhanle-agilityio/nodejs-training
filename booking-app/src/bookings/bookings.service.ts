@@ -5,15 +5,18 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, FindOptionsWhere, Repository } from 'typeorm';
 import Redlock from 'redlock';
 import { Booking, BookingStatus } from './booking.entity';
 import { Slot, SlotStatus } from '../slots/slot.entity';
-import { REDLOCK } from '../redis/redis.module';
+import { REDLOCK } from '../redis/redis.tokens';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
+import { getBookingById } from './email/booking-email-relations.util';
+import type { BookingWithEmailRelations } from './email/booking-email.types';
 import { PaymentsService } from '../payments/payments.service';
 import { resolvePagination } from '../common/pagination/resolve-pagination';
 import { SlotsCacheService } from '../slots/slots-cache.service';
@@ -32,6 +35,7 @@ export class BookingsService {
     @Inject(REDLOCK)
     private readonly redlock: Redlock,
     private readonly lifecycle: BookingLifecycleService,
+    @Inject(forwardRef(() => PaymentsService))
     private readonly paymentsService: PaymentsService,
     private readonly slotsCache: SlotsCacheService,
   ) {}
@@ -197,22 +201,49 @@ export class BookingsService {
       }
 
       booking.status = BookingStatus.Cancelled;
-      const bookingRow = await this.bookings.save(booking);
+      await this.bookings.save(booking);
 
-      const cancelledBooking = await this.bookings.findOne({
-        where: { id: bookingRow.id },
-        relations: ['user', 'slot'],
-      });
-
+      const cancelledBooking = await getBookingById(this.bookings, id);
       if (cancelledBooking) {
         await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
       }
 
-      return bookingRow;
+      return booking;
     }
 
     throw new BadRequestException(
       `Cannot cancel a booking with status ${booking.status}`,
     );
+  }
+
+  async findBookingWithDetails(id: string): Promise<Booking | null> {
+    const booking = await this.bookings.findOne({
+      where: { id },
+      relations: ['slot', 'user'],
+    });
+
+    return booking;
+  }
+
+  async findBookingRaw(id: string): Promise<Booking | null> {
+    const booking = await this.bookings.findOne({ where: { id } });
+    return booking;
+  }
+
+  async setStripeSessionId(
+    bookingId: string,
+    sessionId: string,
+  ): Promise<void> {
+    await this.bookings.update(
+      { id: bookingId },
+      { stripeSessionId: sessionId },
+    );
+  }
+
+  async findBookingWithEmailRelations(
+    id: string,
+  ): Promise<BookingWithEmailRelations | null> {
+    const booking = await getBookingById(this.bookings, id);
+    return booking;
   }
 }

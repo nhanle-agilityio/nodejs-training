@@ -12,7 +12,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AppConfig } from '../config/configuration';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
 import { BookingCancellationReason } from '../bookings/email/booking-cancellation-reason';
-import { getBookingById } from '../bookings/email/booking-email-relations.util';
+import { BookingsService } from '../bookings/bookings.service';
 import { BookingLifecycleService } from '../bookings/email/booking-lifecycle.service';
 import {
   bookingPaymentExpiresAt,
@@ -41,14 +41,14 @@ export class PaymentsService {
   constructor(
     @InjectRepository(Payment)
     private readonly payments: Repository<Payment>,
-    @InjectRepository(Booking)
-    private readonly bookings: Repository<Booking>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly stripe: StripeService,
     private readonly config: ConfigService<AppConfig, true>,
     @Inject(forwardRef(() => BookingLifecycleService))
     private readonly lifecycle: BookingLifecycleService,
+    @Inject(forwardRef(() => BookingsService))
+    private readonly bookingsService: BookingsService,
   ) {}
 
   private async tryReuseCheckoutSession(
@@ -200,10 +200,8 @@ export class PaymentsService {
     actorUserId: string,
     isAdmin: boolean,
   ): Promise<CheckoutSessionResult> {
-    const booking = await this.bookings.findOne({
-      where: { id: bookingId },
-      relations: ['slot', 'user'],
-    });
+    const booking =
+      await this.bookingsService.findBookingWithDetails(bookingId);
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
@@ -274,8 +272,7 @@ export class PaymentsService {
       throw new BadRequestException('Stripe did not return a checkout URL');
     }
 
-    booking.stripeSessionId = session.id;
-    await this.bookings.save(booking);
+    await this.bookingsService.setStripeSessionId(booking.id, session.id);
 
     return {
       checkoutUrl: session.url,
@@ -308,7 +305,8 @@ export class PaymentsService {
       return;
     }
 
-    const currentBooking = await getBookingById(this.bookings, bookingId);
+    const currentBooking =
+      await this.bookingsService.findBookingWithEmailRelations(bookingId);
     if (currentBooking) {
       await this.lifecycle.onBookingConfirmed(currentBooking);
     }
@@ -318,9 +316,7 @@ export class PaymentsService {
     bookingId: string,
     reason: BookingCancellationReason,
   ): Promise<Booking> {
-    const booking = await this.bookings.findOne({
-      where: { id: bookingId },
-    });
+    const booking = await this.bookingsService.findBookingRaw(bookingId);
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
@@ -362,16 +358,14 @@ export class PaymentsService {
     });
 
     if (wasConfirmed) {
-      const cancelledBooking = await getBookingById(this.bookings, bookingId);
+      const cancelledBooking =
+        await this.bookingsService.findBookingWithEmailRelations(bookingId);
       if (cancelledBooking) {
         await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
       }
     }
 
-    const bookingUpdated = await this.bookings.findOne({
-      where: { id: bookingId },
-    });
-
+    const bookingUpdated = await this.bookingsService.findBookingRaw(bookingId);
     if (!bookingUpdated) {
       throw new NotFoundException('Booking not found');
     }

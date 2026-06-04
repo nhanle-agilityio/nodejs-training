@@ -1,8 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { InjectDataSource } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { CronJob } from 'cron';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Booking, BookingStatus } from '../booking.entity';
 import { Payment, PaymentStatus } from '../../payments/payment.entity';
 import { StripeService } from '../../payments/stripe.service';
@@ -20,6 +20,8 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
     private readonly schedulerRegistry: SchedulerRegistry,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    @InjectRepository(Booking)
+    private readonly bookings: Repository<Booking>,
     private readonly lifecycle: BookingLifecycleService,
     private readonly stripe: StripeService,
   ) {}
@@ -49,8 +51,8 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
         succeeded: PaymentStatus.Succeeded,
       })
       .where('b.status = :pending', { pending: BookingStatus.Pending })
-      .andWhere('b.created_at < :cutoff', { cutoff })
-      .andWhere('b.deleted_at IS NULL')
+      .andWhere('b.createdAt < :cutoff', { cutoff })
+      .andWhere('b.deletedAt IS NULL')
       .groupBy('b.id')
       .having('COUNT(p.id) = 0')
       .getRawMany<{ id: string }>();
@@ -103,10 +105,7 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
         }
       }
 
-      const booking = await getBookingById(
-        this.dataSource.getRepository(Booking),
-        bookingId,
-      );
+      const booking = await getBookingById(this.bookings, bookingId);
       if (booking) {
         await this.lifecycle.onBookingCancelled(
           booking,

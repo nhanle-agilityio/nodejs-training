@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Booking } from '../bookings/booking.entity';
 import { BookingsModule } from '../bookings/bookings.module';
 import { Payment } from './payment.entity';
 import { PaymentsController } from './payments.controller';
@@ -10,7 +9,7 @@ import { StripeWebhookController } from './webhooks/stripe-webhook.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Payment, Booking]),
+    TypeOrmModule.forFeature([Payment]),
     forwardRef(() => BookingsModule),
   ],
   providers: [StripeService, PaymentsService],

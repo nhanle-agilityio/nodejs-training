@@ -5,6 +5,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
 import { BookingCancellationReason } from '../bookings/email/booking-cancellation-reason';
+import { BookingsService } from '../bookings/bookings.service';
 import { BookingLifecycleService } from '../bookings/email/booking-lifecycle.service';
 import { SlotStatus } from '../slots/slot.entity';
 import { Payment, PaymentStatus } from './payment.entity';
@@ -17,7 +18,12 @@ describe('PaymentsService', () => {
   let paymentsRepo: jest.Mocked<
     Pick<Repository<Payment>, 'findOne' | 'exists'>
   >;
-  let bookingsRepo: jest.Mocked<Pick<Repository<Booking>, 'findOne' | 'save'>>;
+  let bookingsService: {
+    findBookingWithDetails: jest.Mock;
+    setStripeSessionId: jest.Mock;
+    findBookingWithEmailRelations: jest.Mock;
+    findBookingRaw: jest.Mock;
+  };
   let dataSource: { transaction: jest.Mock };
   let stripe: {
     createCheckoutSession: jest.Mock;
@@ -54,11 +60,11 @@ describe('PaymentsService', () => {
       findOne: jest.fn(),
       exists: jest.fn().mockResolvedValue(false),
     };
-    bookingsRepo = {
-      findOne: jest.fn(),
-      save: jest
-        .fn()
-        .mockImplementation((row) => Promise.resolve(row as Booking)),
+    bookingsService = {
+      findBookingWithDetails: jest.fn(),
+      setStripeSessionId: jest.fn().mockResolvedValue(undefined),
+      findBookingWithEmailRelations: jest.fn(),
+      findBookingRaw: jest.fn(),
     };
     dataSource = { transaction: jest.fn() };
     stripe = {
@@ -78,7 +84,7 @@ describe('PaymentsService', () => {
       providers: [
         PaymentsService,
         { provide: getRepositoryToken(Payment), useValue: paymentsRepo },
-        { provide: getRepositoryToken(Booking), useValue: bookingsRepo },
+        { provide: BookingsService, useValue: bookingsService },
         { provide: DataSource, useValue: dataSource },
         { provide: StripeService, useValue: stripe },
         {
@@ -104,7 +110,7 @@ describe('PaymentsService', () => {
   });
 
   it('creates a checkout session for a pending booking', async () => {
-    bookingsRepo.findOne.mockResolvedValue(booking);
+    bookingsService.findBookingWithDetails.mockResolvedValue(booking);
 
     const result = await service.createCheckoutSession(
       bookingId,
@@ -120,14 +126,15 @@ describe('PaymentsService', () => {
       }),
       `checkout-${bookingId}`,
     );
-    expect(bookingsRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ stripeSessionId: 'cs_test_1' }),
+    expect(bookingsService.setStripeSessionId).toHaveBeenCalledWith(
+      bookingId,
+      'cs_test_1',
     );
     expect(result.checkoutUrl).toContain('checkout.stripe.test');
   });
 
   it('reuses an open checkout session', async () => {
-    bookingsRepo.findOne.mockResolvedValue({
+    bookingsService.findBookingWithDetails.mockResolvedValue({
       ...booking,
       stripeSessionId: 'cs_existing',
     });
@@ -148,7 +155,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when booking is not pending', async () => {
-    bookingsRepo.findOne.mockResolvedValue({
+    bookingsService.findBookingWithDetails.mockResolvedValue({
       ...booking,
       status: BookingStatus.Confirmed,
     });
@@ -159,7 +166,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when caller does not own the booking', async () => {
-    bookingsRepo.findOne.mockResolvedValue(booking);
+    bookingsService.findBookingWithDetails.mockResolvedValue(booking);
 
     await expect(
       service.createCheckoutSession(bookingId, 'other-user', false),
@@ -167,7 +174,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when booking payment window has expired', async () => {
-    bookingsRepo.findOne.mockResolvedValue({
+    bookingsService.findBookingWithDetails.mockResolvedValue({
       ...booking,
       createdAt: new Date(Date.now() - 20 * 60_000),
     });
@@ -180,10 +187,10 @@ describe('PaymentsService', () => {
 
   // H3 — slot unavailability guards
   it('throws when slot is null', async () => {
-    bookingsRepo.findOne.mockResolvedValue({
+    bookingsService.findBookingWithDetails.mockResolvedValue({
       ...booking,
       slot: null,
-    } as unknown as Booking);
+    });
 
     await expect(
       service.createCheckoutSession(bookingId, userId, false),
@@ -192,7 +199,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when slot is soft-deleted', async () => {
-    bookingsRepo.findOne.mockResolvedValue({
+    bookingsService.findBookingWithDetails.mockResolvedValue({
       ...booking,
       slot: { ...booking.slot, deletedAt: new Date() },
     });
@@ -204,7 +211,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when slot is not open', async () => {
-    bookingsRepo.findOne.mockResolvedValue({
+    bookingsService.findBookingWithDetails.mockResolvedValue({
       ...booking,
       slot: { ...booking.slot, status: SlotStatus.Closed },
     });
@@ -217,7 +224,7 @@ describe('PaymentsService', () => {
 
   // H4 — admin bypass
   it('allows admin to create checkout for another user booking', async () => {
-    bookingsRepo.findOne.mockResolvedValue(booking);
+    bookingsService.findBookingWithDetails.mockResolvedValue(booking);
 
     const result = await service.createCheckoutSession(
       bookingId,
@@ -292,7 +299,7 @@ describe('PaymentsService', () => {
       const txBooking = { ...booking, slot: { ...booking.slot } };
       const { txSave } = mockPaymentTransaction({ booking: txBooking });
 
-      bookingsRepo.findOne.mockResolvedValue({
+      bookingsService.findBookingWithEmailRelations.mockResolvedValue({
         ...booking,
         status: BookingStatus.Confirmed,
         stripePaymentIntentId: 'pi_1',
@@ -461,7 +468,7 @@ describe('PaymentsService', () => {
         stripePaymentIntentId: 'pi_1',
       } as Booking;
 
-      bookingsRepo.findOne
+      bookingsService.findBookingRaw
         .mockResolvedValueOnce(cancelledBooking)
         .mockResolvedValueOnce(cancelledBooking);
       paymentsRepo.findOne.mockResolvedValue({
@@ -499,18 +506,18 @@ describe('PaymentsService', () => {
         stripePaymentIntentId: 'pi_1',
       } as Booking;
 
-      bookingsRepo.findOne
+      bookingsService.findBookingRaw
         .mockResolvedValueOnce(paidBooking)
         .mockResolvedValueOnce({
           ...paidBooking,
           status: BookingStatus.Refunded,
-          user: paidBooking.user,
-          slot: paidBooking.slot,
-        })
-        .mockResolvedValueOnce({
-          ...paidBooking,
-          status: BookingStatus.Refunded,
         });
+      bookingsService.findBookingWithEmailRelations.mockResolvedValue({
+        ...paidBooking,
+        status: BookingStatus.Refunded,
+        user: paidBooking.user,
+        slot: paidBooking.slot,
+      });
       paymentsRepo.findOne.mockResolvedValue({
         id: 'pay_1',
         bookingId,
@@ -543,7 +550,7 @@ describe('PaymentsService', () => {
     });
 
     it('throws when no refundable payment exists', async () => {
-      bookingsRepo.findOne.mockResolvedValue(booking);
+      bookingsService.findBookingRaw.mockResolvedValue(booking);
       paymentsRepo.findOne.mockResolvedValue(null);
 
       await expect(
@@ -556,7 +563,7 @@ describe('PaymentsService', () => {
 
     // H7 — booking not found
     it('throws NotFoundException when booking does not exist', async () => {
-      bookingsRepo.findOne.mockResolvedValue(null);
+      bookingsService.findBookingRaw.mockResolvedValue(null);
 
       await expect(
         service.refundAndCancel(
@@ -574,7 +581,7 @@ describe('PaymentsService', () => {
         stripePaymentIntentId: 'pi_1',
       } as Booking;
 
-      bookingsRepo.findOne
+      bookingsService.findBookingRaw
         .mockResolvedValueOnce(pendingWithIntent)
         .mockResolvedValueOnce(pendingWithIntent);
       paymentsRepo.findOne.mockResolvedValue({
@@ -611,7 +618,7 @@ describe('PaymentsService', () => {
         stripePaymentIntentId: 'pi_1',
       } as Booking;
 
-      bookingsRepo.findOne.mockResolvedValueOnce(paidBooking);
+      bookingsService.findBookingRaw.mockResolvedValueOnce(paidBooking);
       paymentsRepo.findOne.mockResolvedValue({
         id: 'pay_1',
         bookingId,

@@ -1,5 +1,6 @@
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Booking, BookingStatus } from '../booking.entity';
 import { BookingCancellationReason } from '../email/booking-cancellation-reason';
@@ -57,6 +58,7 @@ describe('PendingBookingExpiryScheduler', () => {
         PendingBookingExpiryScheduler,
         { provide: SchedulerRegistry, useValue: schedulerRegistry },
         { provide: DataSource, useValue: dataSource },
+        { provide: getRepositoryToken(Booking), useValue: bookingRepo },
         { provide: BookingLifecycleService, useValue: lifecycle },
         { provide: StripeService, useValue: stripe },
       ],
