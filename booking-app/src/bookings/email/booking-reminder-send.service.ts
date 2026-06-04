@@ -16,15 +16,15 @@ export class BookingReminderSendService {
 
   private async claimReminderSend(bookingId: string): Promise<boolean> {
     const result = await this.bookings
-      .createQueryBuilder()
+      .createQueryBuilder('booking')
       .update(Booking)
       .set({ reminderSentAt: new Date() })
-      .where('id = :bookingId', { bookingId })
-      .andWhere('reminder_sent_at IS NULL')
-      .andWhere('status IN (:...statuses)', {
+      .where('booking.id = :bookingId', { bookingId })
+      .andWhere('booking.reminderSentAt IS NULL')
+      .andWhere('booking.status IN (:...statuses)', {
         statuses: [...BOOKING_REMINDER.statuses],
       })
-      .andWhere('deleted_at IS NULL')
+      .andWhere('booking.deletedAt IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;

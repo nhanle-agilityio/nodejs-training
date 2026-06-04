@@ -11,10 +11,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import { Request } from 'express';
 import { Webhook } from 'svix';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AppConfig } from '../../config/configuration';
+import type { RawBodyRequest } from '../../common/types/raw-body-request';
 import { UsersService } from '../../users/users.service';
 import type { UserRole } from '../../users/user.entity';
 
@@ -33,10 +33,6 @@ interface ClerkUserData {
 interface ClerkEvent {
   type: ClerkEventType;
   data: ClerkUserData;
-}
-
-interface RawBodyRequest extends Request {
-  rawBody?: Buffer;
 }
 
 @ApiExcludeController()

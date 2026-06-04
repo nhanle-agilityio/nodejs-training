@@ -10,15 +10,11 @@ import {
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
+import type { RawBodyRequest } from '../../common/types/raw-body-request';
 import { PaymentsService } from '../payments.service';
 import { StripeService } from '../stripe.service';
 import type { StripeEvent } from '../stripe.types';
-
-interface RawBodyRequest extends Request {
-  rawBody?: Buffer;
-}
 
 @ApiExcludeController()
 @SkipThrottle()

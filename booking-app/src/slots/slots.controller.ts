@@ -31,6 +31,7 @@ import { mapPaginatedItems } from '../common/pagination/map-paginated-items';
 import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('slots')
+@ApiBearerAuth('clerk-jwt')
 @Controller('slots')
 export class SlotsController {
   constructor(private readonly slotsService: SlotsService) {}
@@ -62,7 +63,6 @@ export class SlotsController {
   }
 
   @Post()
-  @ApiBearerAuth('clerk-jwt')
   @CheckPolicies((ability) => ability.can(Action.Create, Slot))
   @ApiCreatedResponse({ type: SlotResponseDto })
   async createSlot(@Body() dto: CreateSlotDto): Promise<SlotResponseDto> {
@@ -74,7 +74,6 @@ export class SlotsController {
   }
 
   @Patch(':id')
-  @ApiBearerAuth('clerk-jwt')
   @CheckPolicies((ability) => ability.can(Action.Update, Slot))
   @ApiOkResponse({ type: SlotResponseDto })
   async updateSlot(
@@ -89,7 +88,6 @@ export class SlotsController {
   }
 
   @Delete(':id')
-  @ApiBearerAuth('clerk-jwt')
   @CheckPolicies((ability) => ability.can(Action.Delete, Slot))
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteSlot(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
