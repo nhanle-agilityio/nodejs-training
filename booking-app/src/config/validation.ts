@@ -13,7 +13,6 @@ export const envValidationSchema = Joi.object({
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().default(6379),
   CLERK_SECRET_KEY: Joi.string().required(),
-  CLERK_PUBLISHABLE_KEY: Joi.string().required(),
   CLERK_WEBHOOK_SECRET: Joi.string().required(),
   BULLMQ_PREFIX: Joi.string().required(),
   MAIL_MODE: Joi.string().valid('live', 'noop').default('live'),

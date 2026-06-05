@@ -29,7 +29,7 @@ export interface AppConfig {
     name: string;
   };
   redis: { host: string; port: number };
-  clerk: { secretKey: string; publishableKey: string; webhookSecret: string };
+  clerk: { secretKey: string; webhookSecret: string };
   bullmq: { prefix: string };
   mail: MailConfig;
   stripe: StripeConfig;
@@ -55,7 +55,6 @@ export const loadConfiguration = (): AppConfig => ({
   },
   clerk: {
     secretKey: process.env.CLERK_SECRET_KEY ?? '',
-    publishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? '',
     webhookSecret: process.env.CLERK_WEBHOOK_SECRET ?? '',
   },
   bullmq: {
