@@ -14,8 +14,13 @@ export class RedisHealthIndicator extends HealthIndicator {
   }
 
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
+    const TIMEOUT_MS = 3000;
+
     try {
-      const result = await this.redis.ping();
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Redis ping timed out')), TIMEOUT_MS),
+      );
+      const result = await Promise.race([this.redis.ping(), timeout]);
       const isHealthy = result === 'PONG';
 
       return this.getStatus(key, isHealthy);
