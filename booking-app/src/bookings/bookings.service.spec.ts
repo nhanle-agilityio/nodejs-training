@@ -18,7 +18,10 @@ import { SlotsCacheService } from '../slots/slots-cache.service';
 describe('BookingsService', () => {
   let service: BookingsService;
   let bookingsRepo: jest.Mocked<
-    Pick<Repository<Booking>, 'findOne' | 'find' | 'findAndCount' | 'save'>
+    Pick<
+      Repository<Booking>,
+      'findOne' | 'find' | 'findAndCount' | 'save' | 'update'
+    >
   >;
   let dataSource: { transaction: jest.Mock };
   let redlock: { acquire: jest.Mock };
@@ -70,6 +73,7 @@ describe('BookingsService', () => {
       save: jest.fn(),
       find: jest.fn(),
       findAndCount: jest.fn(),
+      update: jest.fn(),
     };
 
     dataSource = { transaction: jest.fn() };
@@ -449,6 +453,101 @@ describe('BookingsService', () => {
       await service.cancelBooking(bookingId, userId, false);
 
       expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createBooking — lock release failure', () => {
+    it('logs a warning and resolves when lock.release rejects', async () => {
+      mockTransactionManager({});
+      lock.release.mockRejectedValueOnce(new Error('redis gone'));
+
+      const result = await service.createBooking(userId, slotId);
+
+      expect(result).toBeDefined();
+      expect(lock.release).toHaveBeenCalled();
+    });
+  });
+
+  describe('findBookingWithDetails', () => {
+    it('returns null when booking does not exist', async () => {
+      bookingsRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findBookingWithDetails(bookingId);
+
+      expect(result).toBeNull();
+      expect(bookingsRepo.findOne).toHaveBeenCalledWith({
+        where: { id: bookingId },
+        relations: ['slot', 'user'],
+      });
+    });
+
+    it('returns booking with slot and user relations when found', async () => {
+      const bookingWithRelations = {
+        ...pendingBooking,
+        slot: openSlot,
+        user: { id: userId, email: 'user@test.com' },
+      } as Booking;
+      bookingsRepo.findOne.mockResolvedValue(bookingWithRelations);
+
+      const result = await service.findBookingWithDetails(bookingId);
+
+      expect(result).toBe(bookingWithRelations);
+    });
+  });
+
+  describe('findBookingRaw', () => {
+    it('returns null when booking does not exist', async () => {
+      bookingsRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findBookingRaw(bookingId);
+
+      expect(result).toBeNull();
+      expect(bookingsRepo.findOne).toHaveBeenCalledWith({
+        where: { id: bookingId },
+      });
+    });
+
+    it('returns the raw booking entity when found', async () => {
+      bookingsRepo.findOne.mockResolvedValue(pendingBooking);
+
+      const result = await service.findBookingRaw(bookingId);
+
+      expect(result).toBe(pendingBooking);
+    });
+  });
+
+  describe('setStripeSessionId', () => {
+    it('calls repo.update with booking id and session id', async () => {
+      bookingsRepo.update.mockResolvedValue({ affected: 1 } as never);
+
+      await service.setStripeSessionId(bookingId, 'cs_stripe_session_1');
+
+      expect(bookingsRepo.update).toHaveBeenCalledWith(
+        { id: bookingId },
+        { stripeSessionId: 'cs_stripe_session_1' },
+      );
+    });
+  });
+
+  describe('findBookingWithEmailRelations', () => {
+    it('returns null when booking does not exist', async () => {
+      bookingsRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findBookingWithEmailRelations(bookingId);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns booking with user and slot relations when found', async () => {
+      bookingsRepo.findOne.mockResolvedValue(bookingRowForEmail);
+
+      const result = await service.findBookingWithEmailRelations(bookingId);
+
+      expect(result).toBe(bookingRowForEmail);
+      expect(bookingsRepo.findOne).toHaveBeenCalledWith({
+        where: { id: bookingId },
+        relations: ['user', 'slot'],
+      });
     });
   });
 });

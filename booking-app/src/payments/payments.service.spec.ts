@@ -641,4 +641,28 @@ describe('PaymentsService', () => {
       );
     });
   });
+
+  describe('hasRefundablePayment', () => {
+    it('returns true when a succeeded or failed payment exists for the booking', async () => {
+      paymentsRepo.exists.mockResolvedValue(true);
+
+      const result = await service.hasRefundablePayment(bookingId);
+
+      expect(result).toBe(true);
+      expect(paymentsRepo.exists).toHaveBeenCalledWith({
+        where: expect.arrayContaining([
+          { bookingId, status: PaymentStatus.Succeeded },
+          { bookingId, status: PaymentStatus.Failed },
+        ]) as unknown[],
+      });
+    });
+
+    it('returns false when no refundable payment exists', async () => {
+      paymentsRepo.exists.mockResolvedValue(false);
+
+      const result = await service.hasRefundablePayment(bookingId);
+
+      expect(result).toBe(false);
+    });
+  });
 });

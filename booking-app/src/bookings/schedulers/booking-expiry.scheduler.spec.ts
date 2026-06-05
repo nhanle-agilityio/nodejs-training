@@ -1,3 +1,4 @@
+import { CronJob } from 'cron';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -251,6 +252,24 @@ describe('PendingBookingExpiryScheduler', () => {
       } finally {
         (BOOKING_PAYMENT_PENDING_EXPIRY as { enabled: boolean }).enabled = true;
       }
+    });
+
+    it('CronJob tick callback invokes expireStalePendingBookings', () => {
+      const MockCronJob = CronJob as unknown as jest.Mock;
+      MockCronJob.mockClear();
+      const spy = jest
+        .spyOn(scheduler, 'expireStalePendingBookings')
+        .mockResolvedValue(undefined);
+
+      scheduler.onModuleInit();
+
+      const [, tickCallback] = MockCronJob.mock.calls[0] as [
+        unknown,
+        () => void,
+      ];
+      tickCallback();
+
+      expect(spy).toHaveBeenCalled();
     });
   });
 });
