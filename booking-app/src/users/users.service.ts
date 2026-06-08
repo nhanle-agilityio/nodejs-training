@@ -7,7 +7,7 @@ export interface UpsertFromClerkInput {
   clerkId: string;
   email: string;
   name: string;
-  role?: UserRole;
+  role: UserRole;
 }
 
 @Injectable()
@@ -33,7 +33,7 @@ export class UsersService {
     if (existing) {
       existing.email = input.email;
       existing.name = input.name;
-      if (input.role) existing.role = input.role;
+      existing.role = input.role;
       return this.users.save(existing);
     }
 
@@ -41,7 +41,7 @@ export class UsersService {
       clerkId: input.clerkId,
       email: input.email,
       name: input.name,
-      role: input.role ?? UserRole.User,
+      role: input.role,
     });
 
     return this.users.save(created);

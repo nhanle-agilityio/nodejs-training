@@ -16,7 +16,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import type { AppConfig } from '../../config/configuration';
 import type { RawBodyRequest } from '../../common/types/raw-body-request';
 import { UsersService } from '../../users/users.service';
-import type { UserRole } from '../../users/user.entity';
+import { UserRole } from '../../users/user.entity';
 
 type ClerkEventType = 'user.created' | 'user.updated' | 'user.deleted';
 
@@ -97,7 +97,8 @@ export class ClerkWebhookController {
           [data.first_name, data.last_name].filter(Boolean).join(' ') ||
           data.username ||
           '';
-        const role = data.public_metadata?.role as UserRole;
+        let role = data.public_metadata?.role as UserRole;
+        role = role ?? UserRole.User;
 
         await this.users.upsertFromClerk({
           clerkId: data.id,

@@ -78,7 +78,7 @@ describe('UsersService', () => {
   });
 
   describe('upsertFromClerk', () => {
-    it('updates email and name of an existing user', async () => {
+    it('updates email, name and role of an existing user', async () => {
       usersRepo.findOne.mockResolvedValue({ ...existingUser });
       usersRepo.save.mockImplementation((u) => Promise.resolve(u as User));
 
@@ -86,6 +86,7 @@ describe('UsersService', () => {
         clerkId,
         email: 'new@test.com',
         name: 'New Name',
+        role: UserRole.User,
       };
 
       const result = await service.upsertFromClerk(input);
@@ -95,15 +96,20 @@ describe('UsersService', () => {
       expect(usersRepo.save).toHaveBeenCalled();
     });
 
-    it('does not change role when input omits role for existing user', async () => {
+    it('always overwrites existing role with the input role', async () => {
       const userWithAdminRole = { ...existingUser, role: UserRole.Admin };
       usersRepo.findOne.mockResolvedValue(userWithAdminRole);
       usersRepo.save.mockImplementation((u) => Promise.resolve(u as User));
 
-      await service.upsertFromClerk({ clerkId, email: 'x@x.com', name: 'X' });
+      await service.upsertFromClerk({
+        clerkId,
+        email: 'x@x.com',
+        name: 'X',
+        role: UserRole.User,
+      });
 
       expect(usersRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ role: UserRole.Admin }),
+        expect.objectContaining({ role: UserRole.User }),
       );
     });
 
@@ -126,7 +132,7 @@ describe('UsersService', () => {
       );
     });
 
-    it('creates a new user with UserRole.User default when user does not exist', async () => {
+    it('creates a new user with the provided role', async () => {
       usersRepo.findOne.mockResolvedValue(null);
       const created = { ...existingUser, role: UserRole.User };
       usersRepo.create.mockReturnValue(created);
@@ -136,6 +142,7 @@ describe('UsersService', () => {
         clerkId: 'new_clerk_id',
         email: 'new@test.com',
         name: 'New User',
+        role: UserRole.User,
       });
 
       expect(usersRepo.create).toHaveBeenCalledWith(
