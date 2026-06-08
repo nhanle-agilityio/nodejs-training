@@ -211,6 +211,81 @@ The app container maps `..` (project root) as a volume, so code changes are refl
 
 ---
 
+## Local Webhook Development
+
+Both Clerk and Stripe push events to your application over HTTP. Since these services cannot reach `localhost` directly, you need a tunnel for Clerk and the Stripe CLI forwarder for Stripe.
+
+### Clerk Webhooks
+
+Clerk fires `user.created`, `user.updated`, and `user.deleted` events to keep the local `users` table in sync with Clerk's user directory.
+
+**Setup**
+
+1. Start the application on port 3000.
+2. Install [ngrok](https://ngrok.com) and start a tunnel:
+
+```bash
+ngrok http 3000
+```
+
+3. Copy the generated HTTPS forwarding URL and open the **Clerk Dashboard → Configure → Webhooks → Add Endpoint**.
+4. Set the endpoint URL to:
+
+```
+https://<ngrok-id>.ngrok-free.app/webhooks/clerk
+```
+
+5. Subscribe to these events: `user.created`, `user.updated`, `user.deleted`.
+6. Copy the **Signing Secret** (`whsec_...`) shown for the endpoint and add it to `devenv/.env`:
+
+```env
+CLERK_WEBHOOK_SECRET=whsec_...
+```
+
+---
+
+### Stripe Webhooks
+
+Stripe fires `payment_intent.succeeded` after a payment completes, which the app uses to confirm bookings and trigger confirmation emails.
+
+**Setup**
+
+1. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and log in:
+
+```bash
+stripe login
+```
+
+2. Start the event forwarder:
+
+```bash
+stripe listen --forward-to localhost:3000/webhooks/stripe
+```
+
+3. The CLI prints a webhook signing secret on startup:
+
+```
+Ready! Your webhook signing secret is whsec_... (^C to quit)
+```
+
+   Add it to `devenv/.env` and restart the application:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+4. Trigger a test event from a second terminal:
+
+```bash
+stripe trigger payment_intent.succeeded
+```
+
+   The app logs: `Stripe event payment_intent.succeeded id=<event-id>`.
+
+---
+
+---
+
 ## Environment Variables Reference
 
 | Variable | Default | Description |
