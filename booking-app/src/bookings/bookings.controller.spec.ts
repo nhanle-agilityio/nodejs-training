@@ -51,7 +51,6 @@ describe('BookingsController', () => {
         .mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 }),
       getBookingById: jest.fn(),
       cancelBooking: jest.fn(),
-      findBookingWithDetails: jest.fn(),
       findBookingRaw: jest.fn(),
       setStripeSessionId: jest.fn(),
       findBookingWithEmailRelations: jest.fn(),

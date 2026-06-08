@@ -468,33 +468,6 @@ describe('BookingsService', () => {
     });
   });
 
-  describe('findBookingWithDetails', () => {
-    it('returns null when booking does not exist', async () => {
-      bookingsRepo.findOne.mockResolvedValue(null);
-
-      const result = await service.findBookingWithDetails(bookingId);
-
-      expect(result).toBeNull();
-      expect(bookingsRepo.findOne).toHaveBeenCalledWith({
-        where: { id: bookingId },
-        relations: ['slot', 'user'],
-      });
-    });
-
-    it('returns booking with slot and user relations when found', async () => {
-      const bookingWithRelations = {
-        ...pendingBooking,
-        slot: openSlot,
-        user: { id: userId, email: 'user@test.com' },
-      } as Booking;
-      bookingsRepo.findOne.mockResolvedValue(bookingWithRelations);
-
-      const result = await service.findBookingWithDetails(bookingId);
-
-      expect(result).toBe(bookingWithRelations);
-    });
-  });
-
   describe('findBookingRaw', () => {
     it('returns null when booking does not exist', async () => {
       bookingsRepo.findOne.mockResolvedValue(null);

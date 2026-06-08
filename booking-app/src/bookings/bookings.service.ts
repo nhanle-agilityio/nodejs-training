@@ -15,7 +15,6 @@ import { Slot, SlotStatus } from '../slots/slot.entity';
 import { REDLOCK } from '../redis/redis.tokens';
 import { BookingCancellationReason } from './email/booking-cancellation-reason';
 import { BookingLifecycleService } from './email/booking-lifecycle.service';
-import { getBookingById } from './email/booking-email-relations.util';
 import type { BookingWithEmailRelations } from './email/booking-email.types';
 import { PaymentsService } from '../payments/payments.service';
 import { resolvePagination } from '../common/pagination/resolve-pagination';
@@ -203,7 +202,7 @@ export class BookingsService {
       booking.status = BookingStatus.Cancelled;
       await this.bookings.save(booking);
 
-      const cancelledBooking = await getBookingById(this.bookings, id);
+      const cancelledBooking = await this.findBookingWithEmailRelations(id);
       if (cancelledBooking) {
         await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
       }
@@ -214,15 +213,6 @@ export class BookingsService {
     throw new BadRequestException(
       `Cannot cancel a booking with status ${booking.status}`,
     );
-  }
-
-  async findBookingWithDetails(id: string): Promise<Booking | null> {
-    const booking = await this.bookings.findOne({
-      where: { id },
-      relations: ['slot', 'user'],
-    });
-
-    return booking;
   }
 
   async findBookingRaw(id: string): Promise<Booking | null> {
@@ -243,7 +233,9 @@ export class BookingsService {
   async findBookingWithEmailRelations(
     id: string,
   ): Promise<BookingWithEmailRelations | null> {
-    const booking = await getBookingById(this.bookings, id);
-    return booking;
+    return this.bookings.findOne({
+      where: { id },
+      relations: ['user', 'slot'],
+    });
   }
 }

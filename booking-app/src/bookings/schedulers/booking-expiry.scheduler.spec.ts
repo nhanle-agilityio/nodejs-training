@@ -1,12 +1,12 @@
 import { CronJob } from 'cron';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Booking, BookingStatus } from '../booking.entity';
 import { BookingCancellationReason } from '../email/booking-cancellation-reason';
 import { BookingLifecycleService } from '../email/booking-lifecycle.service';
 import { StripeService } from '../../payments/stripe.service';
+import { BookingsService } from '../bookings.service';
 import { PendingBookingExpiryScheduler } from './booking-expiry.scheduler';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from './booking-expiry.constants';
 
@@ -22,11 +22,10 @@ describe('PendingBookingExpiryScheduler', () => {
   let dataSource: {
     createQueryBuilder: jest.Mock;
     transaction: jest.Mock;
-    getRepository: jest.Mock;
   };
   let lifecycle: { onBookingCancelled: jest.Mock };
   let stripe: { expireCheckoutSession: jest.Mock };
-  let bookingRepo: { findOne: jest.Mock };
+  let bookingsService: { findBookingWithEmailRelations: jest.Mock };
 
   const bookingId = 'b1111111-1111-1111-1111-111111111111';
   const staleCreatedAt = new Date('2026-01-01T00:00:00.000Z');
@@ -42,12 +41,11 @@ describe('PendingBookingExpiryScheduler', () => {
   };
 
   beforeEach(async () => {
-    bookingRepo = { findOne: jest.fn() };
+    bookingsService = { findBookingWithEmailRelations: jest.fn() };
     schedulerRegistry = { addCronJob: jest.fn() };
     dataSource = {
       createQueryBuilder: jest.fn(),
       transaction: jest.fn(),
-      getRepository: jest.fn().mockReturnValue(bookingRepo),
     };
     lifecycle = { onBookingCancelled: jest.fn().mockResolvedValue(undefined) };
     stripe = {
@@ -59,7 +57,7 @@ describe('PendingBookingExpiryScheduler', () => {
         PendingBookingExpiryScheduler,
         { provide: SchedulerRegistry, useValue: schedulerRegistry },
         { provide: DataSource, useValue: dataSource },
-        { provide: getRepositoryToken(Booking), useValue: bookingRepo },
+        { provide: BookingsService, useValue: bookingsService },
         { provide: BookingLifecycleService, useValue: lifecycle },
         { provide: StripeService, useValue: stripe },
       ],
@@ -121,7 +119,9 @@ describe('PendingBookingExpiryScheduler', () => {
         createdAt: staleCreatedAt,
       },
     });
-    bookingRepo.findOne.mockResolvedValue(bookingWithRelations);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(
+      bookingWithRelations,
+    );
 
     await scheduler.expireStalePendingBookings();
 
@@ -142,7 +142,9 @@ describe('PendingBookingExpiryScheduler', () => {
         stripeSessionId: 'cs_stale',
       },
     });
-    bookingRepo.findOne.mockResolvedValue(bookingWithRelations);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(
+      bookingWithRelations,
+    );
 
     await scheduler.expireStalePendingBookings();
 
@@ -160,7 +162,9 @@ describe('PendingBookingExpiryScheduler', () => {
         stripeSessionId: 'cs_stale',
       },
     });
-    bookingRepo.findOne.mockResolvedValue(bookingWithRelations);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(
+      bookingWithRelations,
+    );
     stripe.expireCheckoutSession.mockRejectedValue(new Error('stripe down'));
 
     await scheduler.expireStalePendingBookings();
@@ -222,7 +226,7 @@ describe('PendingBookingExpiryScheduler', () => {
         createdAt: staleCreatedAt,
       },
     });
-    bookingRepo.findOne.mockResolvedValue(null);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(null);
 
     await scheduler.expireStalePendingBookings();
 

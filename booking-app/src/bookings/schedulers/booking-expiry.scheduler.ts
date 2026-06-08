@@ -1,14 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { CronJob } from 'cron';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { Booking, BookingStatus } from '../booking.entity';
 import { Payment, PaymentStatus } from '../../payments/payment.entity';
 import { StripeService } from '../../payments/stripe.service';
 import { BookingCancellationReason } from '../email/booking-cancellation-reason';
-import { getBookingById } from '../email/booking-email-relations.util';
 import { BookingLifecycleService } from '../email/booking-lifecycle.service';
+import { BookingsService } from '../bookings.service';
 import { BOOKING_PAYMENT_PENDING_EXPIRY } from './booking-expiry.constants';
 import { pendingPaymentCutoff } from './booking-payment.util';
 
@@ -20,8 +20,7 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
     private readonly schedulerRegistry: SchedulerRegistry,
     @InjectDataSource()
     private readonly dataSource: DataSource,
-    @InjectRepository(Booking)
-    private readonly bookings: Repository<Booking>,
+    private readonly bookingsService: BookingsService,
     private readonly lifecycle: BookingLifecycleService,
     private readonly stripe: StripeService,
   ) {}
@@ -105,7 +104,8 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
         }
       }
 
-      const booking = await getBookingById(this.bookings, bookingId);
+      const booking =
+        await this.bookingsService.findBookingWithEmailRelations(bookingId);
       if (booking) {
         await this.lifecycle.onBookingCancelled(
           booking,

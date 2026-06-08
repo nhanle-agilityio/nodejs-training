@@ -19,9 +19,8 @@ describe('PaymentsService', () => {
     Pick<Repository<Payment>, 'findOne' | 'exists'>
   >;
   let bookingsService: {
-    findBookingWithDetails: jest.Mock;
-    setStripeSessionId: jest.Mock;
     findBookingWithEmailRelations: jest.Mock;
+    setStripeSessionId: jest.Mock;
     findBookingRaw: jest.Mock;
   };
   let dataSource: { transaction: jest.Mock };
@@ -61,9 +60,8 @@ describe('PaymentsService', () => {
       exists: jest.fn().mockResolvedValue(false),
     };
     bookingsService = {
-      findBookingWithDetails: jest.fn(),
-      setStripeSessionId: jest.fn().mockResolvedValue(undefined),
       findBookingWithEmailRelations: jest.fn(),
+      setStripeSessionId: jest.fn().mockResolvedValue(undefined),
       findBookingRaw: jest.fn(),
     };
     dataSource = { transaction: jest.fn() };
@@ -110,7 +108,7 @@ describe('PaymentsService', () => {
   });
 
   it('creates a checkout session for a pending booking', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue(booking);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(booking);
 
     const result = await service.createCheckoutSession(
       bookingId,
@@ -134,7 +132,7 @@ describe('PaymentsService', () => {
   });
 
   it('reuses an open checkout session', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue({
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue({
       ...booking,
       stripeSessionId: 'cs_existing',
     });
@@ -155,7 +153,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when booking is not pending', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue({
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue({
       ...booking,
       status: BookingStatus.Confirmed,
     });
@@ -166,7 +164,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when caller does not own the booking', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue(booking);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(booking);
 
     await expect(
       service.createCheckoutSession(bookingId, 'other-user', false),
@@ -174,7 +172,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when booking payment window has expired', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue({
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue({
       ...booking,
       createdAt: new Date(Date.now() - 20 * 60_000),
     });
@@ -187,7 +185,7 @@ describe('PaymentsService', () => {
 
   // H3 — slot unavailability guards
   it('throws when slot is null', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue({
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue({
       ...booking,
       slot: null,
     });
@@ -199,7 +197,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when slot is soft-deleted', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue({
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue({
       ...booking,
       slot: { ...booking.slot, deletedAt: new Date() },
     });
@@ -211,7 +209,7 @@ describe('PaymentsService', () => {
   });
 
   it('throws when slot is not open', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue({
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue({
       ...booking,
       slot: { ...booking.slot, status: SlotStatus.Closed },
     });
@@ -224,7 +222,7 @@ describe('PaymentsService', () => {
 
   // H4 — admin bypass
   it('allows admin to create checkout for another user booking', async () => {
-    bookingsService.findBookingWithDetails.mockResolvedValue(booking);
+    bookingsService.findBookingWithEmailRelations.mockResolvedValue(booking);
 
     const result = await service.createCheckoutSession(
       bookingId,

@@ -201,7 +201,7 @@ export class PaymentsService {
     isAdmin: boolean,
   ): Promise<CheckoutSessionResult> {
     const booking =
-      await this.bookingsService.findBookingWithDetails(bookingId);
+      await this.bookingsService.findBookingWithEmailRelations(bookingId);
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
