@@ -13,11 +13,19 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
+  ApiParam,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { CheckPolicies } from '../casl/policies.decorator';
 import { Action } from '../casl/casl.types';
@@ -46,7 +54,36 @@ export class BookingsController {
 
   @Post()
   @CheckPolicies((ability) => ability.can(Action.Create, Booking))
-  @ApiCreatedResponse({ type: BookingResponseDto })
+  @ApiOperation({
+    summary: 'Create a booking',
+    description:
+      'Books a slot for the authenticated user. Admins may supply a `userId` to book on behalf of another user. Returns 409 if the slot already has an active booking.',
+  })
+  @ApiCreatedResponse({
+    description: 'Booking created successfully',
+    type: BookingResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Slot not available or slot start time has already passed',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Non-admin user supplied a userId to book on behalf of another user',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Slot not found',
+    type: ErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'Slot already has an active booking',
+    type: ErrorResponseDto,
+  })
   async createBooking(
     @CurrentUser() user: User | undefined,
     @Body() dto: CreateBookingDto,
@@ -84,7 +121,23 @@ export class BookingsController {
 
   @Get()
   @CheckPolicies((ability) => ability.can(Action.Manage, Booking))
-  @ApiOkResponse({ type: PaginatedBookingsResponseDto })
+  @ApiOperation({
+    summary: 'List all bookings',
+    description:
+      'Admin only. Returns a paginated list of all bookings across all users. Supports filtering by status, slotId, and userId.',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of all bookings',
+    type: PaginatedBookingsResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Admin role required',
+    type: ErrorResponseDto,
+  })
   async getBookings(
     @Query() query: BookingsQueryDto,
   ): Promise<PaginatedBookingsResponseDto> {
@@ -98,7 +151,19 @@ export class BookingsController {
   }
 
   @Get('me')
-  @ApiOkResponse({ type: PaginatedBookingsResponseDto })
+  @ApiOperation({
+    summary: "List the current user's bookings",
+    description:
+      'Returns a paginated list of bookings belonging to the authenticated user. Supports filtering by status.',
+  })
+  @ApiOkResponse({
+    description: "Paginated list of the user's own bookings",
+    type: PaginatedBookingsResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
   async getMyBookings(
     @CurrentUser() user: User | undefined,
     @Query() query: MyBookingsQueryDto,
@@ -120,7 +185,25 @@ export class BookingsController {
   }
 
   @Get(':id')
-  @ApiOkResponse({ type: BookingResponseDto })
+  @ApiOperation({
+    summary: 'Get a booking by ID',
+    description:
+      'Returns a single booking. Users can only retrieve their own bookings; admins can retrieve any booking.',
+  })
+  @ApiParam({ name: 'id', description: 'Booking ID', format: 'uuid' })
+  @ApiOkResponse({ description: 'Booking details', type: BookingResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Invalid UUID format',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Booking not found or does not belong to the current user',
+    type: ErrorResponseDto,
+  })
   async getBookingById(
     @CurrentUser() user: User | undefined,
     @Param('id', ParseUUIDPipe) id: string,
@@ -139,7 +222,29 @@ export class BookingsController {
   }
 
   @Patch(':id/cancel')
-  @ApiOkResponse({ type: BookingResponseDto })
+  @ApiOperation({
+    summary: 'Cancel a booking',
+    description:
+      'Cancels a booking. If the booking has a completed payment, a Stripe refund is initiated asynchronously; the booking status moves to `REFUND_PENDING` immediately and to `REFUNDED` once the `refund.updated` webhook is received. Users can only cancel their own bookings; admins can cancel any booking.',
+  })
+  @ApiParam({ name: 'id', description: 'Booking ID', format: 'uuid' })
+  @ApiOkResponse({
+    description: 'Booking cancelled (status is CANCELLED or REFUND_PENDING)',
+    type: BookingResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Booking cannot be cancelled — wrong status, refund already in progress, or Stripe error',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Booking not found or does not belong to the current user',
+    type: ErrorResponseDto,
+  })
   async cancelBooking(
     @CurrentUser() user: User | undefined,
     @Param('id', ParseUUIDPipe) id: string,

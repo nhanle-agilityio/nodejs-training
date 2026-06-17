@@ -12,14 +12,22 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
+  ApiParam,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 import { CheckPolicies } from '../casl/policies.decorator';
 import { Action } from '../casl/casl.types';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { Slot } from './slot.entity';
 import { SlotsService } from './slots.service';
 import { CreateSlotDto } from './dto/create-slot.dto';
@@ -31,14 +39,25 @@ import { mapPaginatedItems } from '../common/pagination/map-paginated-items';
 import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('slots')
-@ApiBearerAuth('clerk-jwt')
 @Controller('slots')
 export class SlotsController {
   constructor(private readonly slotsService: SlotsService) {}
 
   @Public()
   @Get()
-  @ApiOkResponse({ type: PaginatedSlotsResponseDto })
+  @ApiOperation({
+    summary: 'List all available slots',
+    description:
+      'Returns a paginated list of slots. Publicly accessible — no authentication required. Supports filtering by status.',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of slots',
+    type: PaginatedSlotsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid query parameters',
+    type: ErrorResponseDto,
+  })
   async getAllSlots(
     @Query() query: SlotsQueryDto,
   ): Promise<PaginatedSlotsResponseDto> {
@@ -51,7 +70,21 @@ export class SlotsController {
 
   @Public()
   @Get(':id')
-  @ApiOkResponse({ type: SlotResponseDto })
+  @ApiOperation({
+    summary: 'Get a slot by ID',
+    description:
+      'Returns a single slot. Publicly accessible — no authentication required.',
+  })
+  @ApiParam({ name: 'id', description: 'Slot ID', format: 'uuid' })
+  @ApiOkResponse({ description: 'Slot details', type: SlotResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Invalid UUID format',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Slot not found',
+    type: ErrorResponseDto,
+  })
   async getSlotById(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<SlotResponseDto> {
@@ -64,7 +97,27 @@ export class SlotsController {
 
   @Post()
   @CheckPolicies((ability) => ability.can(Action.Create, Slot))
-  @ApiCreatedResponse({ type: SlotResponseDto })
+  @ApiBearerAuth('clerk-jwt')
+  @ApiOperation({
+    summary: 'Create a new slot',
+    description: 'Admin only. Creates a new bookable time slot.',
+  })
+  @ApiCreatedResponse({
+    description: 'Slot created successfully',
+    type: SlotResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error in request body',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Admin role required',
+    type: ErrorResponseDto,
+  })
   async createSlot(@Body() dto: CreateSlotDto): Promise<SlotResponseDto> {
     const slot = await this.slotsService.createSlot(dto);
 
@@ -75,7 +128,33 @@ export class SlotsController {
 
   @Patch(':id')
   @CheckPolicies((ability) => ability.can(Action.Update, Slot))
-  @ApiOkResponse({ type: SlotResponseDto })
+  @ApiBearerAuth('clerk-jwt')
+  @ApiOperation({
+    summary: 'Update a slot',
+    description:
+      'Admin only. Partially updates an existing slot. All fields are optional.',
+  })
+  @ApiParam({ name: 'id', description: 'Slot ID', format: 'uuid' })
+  @ApiOkResponse({
+    description: 'Slot updated successfully',
+    type: SlotResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error or invalid UUID',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Admin role required',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Slot not found',
+    type: ErrorResponseDto,
+  })
   async updateSlot(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateSlotDto,
@@ -90,6 +169,30 @@ export class SlotsController {
   @Delete(':id')
   @CheckPolicies((ability) => ability.can(Action.Delete, Slot))
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth('clerk-jwt')
+  @ApiOperation({
+    summary: 'Delete a slot',
+    description:
+      'Admin only. Soft-deletes a slot. The slot will no longer appear in listings.',
+  })
+  @ApiParam({ name: 'id', description: 'Slot ID', format: 'uuid' })
+  @ApiNoContentResponse({ description: 'Slot deleted successfully' })
+  @ApiBadRequestResponse({
+    description: 'Invalid UUID format',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Admin role required',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Slot not found',
+    type: ErrorResponseDto,
+  })
   async deleteSlot(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.slotsService.deleteSlot(id);
   }
