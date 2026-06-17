@@ -1,4 +1,5 @@
 import { CronJob } from 'cron';
+import { Logger } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
@@ -66,7 +67,13 @@ describe('PendingBookingExpiryScheduler', () => {
     scheduler = moduleRef.get(PendingBookingExpiryScheduler);
   });
 
-  const mockCandidateQuery = (ids: string[]) => {
+  // Returns a qb mock whose getRawMany yields each batch in sequence.
+  // Pass a single array for single-batch tests; pass multiple for loop tests.
+  const mockCandidateQueries = (batchResults: string[][]) => {
+    const getRawMany = jest.fn();
+    for (const ids of batchResults) {
+      getRawMany.mockResolvedValueOnce(ids.map((id) => ({ id })));
+    }
     const qb = {
       select: jest.fn().mockReturnThis(),
       from: jest.fn().mockReturnThis(),
@@ -75,11 +82,14 @@ describe('PendingBookingExpiryScheduler', () => {
       andWhere: jest.fn().mockReturnThis(),
       groupBy: jest.fn().mockReturnThis(),
       having: jest.fn().mockReturnThis(),
-      getRawMany: jest.fn().mockResolvedValue(ids.map((id) => ({ id }))),
+      limit: jest.fn().mockReturnThis(),
+      getRawMany,
     };
     dataSource.createQueryBuilder.mockReturnValue(qb);
     return qb;
   };
+
+  const mockCandidateQuery = (ids: string[]) => mockCandidateQueries([ids]);
 
   const mockExpireTransaction = (options: {
     booking?: Partial<Booking> | null;
@@ -108,6 +118,23 @@ describe('PendingBookingExpiryScheduler', () => {
     );
 
     return { exists, save, getOne };
+  };
+
+  // Lightweight transaction mock: booking not found → every booking is skipped.
+  // Use this when testing loop / batch behaviour rather than per-booking logic.
+  const mockSkipTransaction = () => {
+    dataSource.transaction.mockImplementation(
+      async (fn: (manager: unknown) => Promise<void>) =>
+        fn({
+          createQueryBuilder: jest.fn().mockReturnValue({
+            setLock: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getOne: jest.fn().mockResolvedValue(null),
+          }),
+          exists: jest.fn(),
+          save: jest.fn(),
+        }),
+    );
   };
 
   it('expires stale pending bookings without succeeded payment', async () => {
@@ -190,17 +217,6 @@ describe('PendingBookingExpiryScheduler', () => {
     expect(stripe.expireCheckoutSession).not.toHaveBeenCalled();
   });
 
-  // M12 — zero candidates
-  it('does nothing when there are no stale candidates', async () => {
-    mockCandidateQuery([]);
-
-    await scheduler.expireStalePendingBookings();
-
-    expect(dataSource.transaction).not.toHaveBeenCalled();
-    expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
-  });
-
-  // M13 — createdAt still within payment window
   it('skips booking inside the transaction when createdAt is within the payment window', async () => {
     mockCandidateQuery([bookingId]);
     const { save } = mockExpireTransaction({
@@ -231,6 +247,72 @@ describe('PendingBookingExpiryScheduler', () => {
     await scheduler.expireStalePendingBookings();
 
     expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+  });
+
+  it('applies batchSize limit to the candidate query', async () => {
+    const qb = mockCandidateQuery([]);
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(qb.limit).toHaveBeenCalledWith(
+      BOOKING_PAYMENT_PENDING_EXPIRY.batchSize,
+    );
+  });
+
+  it('does nothing when there are no stale candidates', async () => {
+    mockCandidateQuery([]);
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+  });
+
+  it('fetches the next batch immediately when the previous batch was full', async () => {
+    const { batchSize } = BOOKING_PAYMENT_PENDING_EXPIRY;
+    const fullBatch = Array.from({ length: batchSize }, (_, i) => `id-${i}`);
+
+    const qb = mockCandidateQueries([
+      fullBatch, // batch 1: full → continue
+      [], // batch 2: empty → stop
+    ]);
+    mockSkipTransaction();
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(qb.getRawMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after a partial batch without fetching again', async () => {
+    // 1 id returned → batch not full (1 < batchSize) → loop exits after first fetch
+    const qb = mockCandidateQuery([bookingId]);
+    mockSkipTransaction();
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(qb.getRawMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops at maxBatchesPerRun and logs a warning when backlog is large', async () => {
+    const { batchSize, maxBatchesPerRun } = BOOKING_PAYMENT_PENDING_EXPIRY;
+    const fullBatch = Array.from({ length: batchSize }, (_, i) => `id-${i}`);
+
+    // Every fetch returns a full batch — simulates an unbounded backlog
+    const qb = mockCandidateQueries(
+      Array.from({ length: maxBatchesPerRun }, () => fullBatch),
+    );
+    mockSkipTransaction();
+
+    const warnSpy = jest
+      .spyOn((scheduler as unknown as { logger: Logger }).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    await scheduler.expireStalePendingBookings();
+
+    expect(qb.getRawMany).toHaveBeenCalledTimes(maxBatchesPerRun);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('maxBatchesPerRun'),
+    );
   });
 
   describe('onModuleInit', () => {

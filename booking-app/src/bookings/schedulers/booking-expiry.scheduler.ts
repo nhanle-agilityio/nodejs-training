@@ -40,8 +40,94 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
   }
 
   async expireStalePendingBookings(): Promise<void> {
+    const { batchSize, maxBatchesPerRun } = BOOKING_PAYMENT_PENDING_EXPIRY;
     const cutoff = pendingPaymentCutoff();
+    let totalExpired = 0;
+    let didHitLimit = false;
 
+    for (let batch = 0; batch < maxBatchesPerRun; batch++) {
+      const bookingIds = await this.fetchCandidateIds(cutoff);
+
+      if (bookingIds.length === 0) break;
+
+      for (const bookingId of bookingIds) {
+        let didExpire = false;
+        let stripeSessionId: string | null = null;
+
+        await this.dataSource.transaction(async (manager) => {
+          const booking = await manager
+            .createQueryBuilder(Booking, 'b')
+            .setLock('pessimistic_write')
+            .where('b.id = :id', { id: bookingId })
+            .getOne();
+
+          if (!booking || booking.status !== BookingStatus.Pending) return;
+
+          if (booking.createdAt >= cutoff) return;
+
+          const succeeded = await manager.exists(Payment, {
+            where: { bookingId, status: PaymentStatus.Succeeded },
+          });
+
+          if (succeeded) return;
+
+          stripeSessionId = booking.stripeSessionId ?? null;
+          booking.status = BookingStatus.Cancelled;
+          await manager.save(booking);
+          didExpire = true;
+        });
+
+        if (!didExpire) continue;
+
+        totalExpired += 1;
+
+        if (stripeSessionId) {
+          try {
+            await this.stripe.expireCheckoutSession(stripeSessionId);
+          } catch (err) {
+            this.logger.warn(
+              `Failed to expire Stripe session ${stripeSessionId as string} for booking ${bookingId}: ${(err as Error).message}`,
+            );
+          }
+        }
+
+        const booking =
+          await this.bookingsService.findBookingWithEmailRelations(bookingId);
+        if (booking) {
+          await this.lifecycle.onBookingCancelled(
+            booking,
+            BookingCancellationReason.PaymentTimeout,
+          );
+        }
+      }
+
+      // Batch not full → no more candidates, stop early
+      if (bookingIds.length < batchSize) break;
+
+      // Batch was full — more candidates may exist
+      if (batch === maxBatchesPerRun - 1) {
+        // Used all batch budget; remaining backlog deferred to next cron tick
+        didHitLimit = true;
+      } else {
+        // Yield event loop so HTTP requests / other I/O can be processed
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+    }
+
+    if (didHitLimit) {
+      this.logger.warn(
+        `Expiry run reached maxBatchesPerRun (${maxBatchesPerRun}); remaining backlog will continue on the next cron tick`,
+      );
+    }
+
+    if (totalExpired > 0) {
+      this.logger.log(
+        `Pending booking expiry cancelled ${totalExpired} booking(s)`,
+      );
+    }
+  }
+
+  private async fetchCandidateIds(cutoff: Date): Promise<string[]> {
     const bookings = await this.dataSource
       .createQueryBuilder()
       .select('b.id', 'id')
@@ -54,70 +140,10 @@ export class PendingBookingExpiryScheduler implements OnModuleInit {
       .andWhere('b.deletedAt IS NULL')
       .groupBy('b.id')
       .having('COUNT(p.id) = 0')
+      .limit(BOOKING_PAYMENT_PENDING_EXPIRY.batchSize)
       .getRawMany<{ id: string }>();
 
-    const bookingIds = bookings.map((booking) => booking.id);
-    let expiredCount = 0;
-
-    for (const bookingId of bookingIds) {
-      let didExpire = false;
-      let stripeSessionId: string | null = null;
-
-      await this.dataSource.transaction(async (manager) => {
-        const booking = await manager
-          .createQueryBuilder(Booking, 'b')
-          .setLock('pessimistic_write')
-          .where('b.id = :id', { id: bookingId })
-          .getOne();
-
-        if (!booking || booking.status !== BookingStatus.Pending) {
-          return;
-        }
-        if (booking.createdAt >= cutoff) {
-          return;
-        }
-
-        const succeeded = await manager.exists(Payment, {
-          where: { bookingId: bookingId, status: PaymentStatus.Succeeded },
-        });
-        if (succeeded) return;
-
-        stripeSessionId = booking.stripeSessionId ?? null;
-        booking.status = BookingStatus.Cancelled;
-        await manager.save(booking);
-        didExpire = true;
-      });
-
-      if (!didExpire) {
-        continue;
-      }
-
-      expiredCount += 1;
-
-      if (stripeSessionId) {
-        try {
-          await this.stripe.expireCheckoutSession(stripeSessionId);
-        } catch (err) {
-          this.logger.warn(
-            `Failed to expire Stripe session ${stripeSessionId as string} for booking ${bookingId}: ${(err as Error).message}`,
-          );
-        }
-      }
-
-      const booking =
-        await this.bookingsService.findBookingWithEmailRelations(bookingId);
-      if (booking) {
-        await this.lifecycle.onBookingCancelled(
-          booking,
-          BookingCancellationReason.PaymentTimeout,
-        );
-      }
-    }
-
-    if (expiredCount > 0) {
-      this.logger.log(
-        `Pending booking expiry cancelled ${expiredCount} booking(s)`,
-      );
-    }
+    const bookingIds = bookings.map((b) => b.id);
+    return bookingIds;
   }
 }
