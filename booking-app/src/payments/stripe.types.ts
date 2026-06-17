@@ -9,10 +9,10 @@ export type StripePaymentIntent = {
   currency?: string;
 };
 
-export type StripeEvent = {
+export type StripeEvent<T = unknown> = {
   id: string;
   type: string;
-  data: { object: StripePaymentIntent };
+  data: { object: T };
 };
 
 export type StripeCheckoutSession = {
@@ -27,6 +27,13 @@ export type StripeCheckoutSessionCreateParams = Parameters<
 
 export type StripeRefund = {
   id: string;
+};
+
+export type StripeRefundObject = {
+  id: string;
+  status: string;
+  payment_intent: string | null;
+  metadata?: { bookingId?: string; cancellationReason?: string };
 };
 
 export { StripeLib };

@@ -173,6 +173,12 @@ export class BookingsService {
       ? BookingCancellationReason.AdminCancelled
       : BookingCancellationReason.UserCancelled;
 
+    if (booking.status === BookingStatus.RefundPending) {
+      throw new BadRequestException(
+        'Refund is already in progress for this booking',
+      );
+    }
+
     const hasRefundablePayment =
       await this.paymentsService.hasRefundablePayment(id);
 

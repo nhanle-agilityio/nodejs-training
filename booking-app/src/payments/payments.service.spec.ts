@@ -11,7 +11,11 @@ import { SlotStatus } from '../slots/slot.entity';
 import { Payment, PaymentStatus } from './payment.entity';
 import { PaymentsService } from './payments.service';
 import { StripeService } from './stripe.service';
-import type { StripeEvent } from './stripe.types';
+import type {
+  StripeEvent,
+  StripePaymentIntent,
+  StripeRefundObject,
+} from './stripe.types';
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
@@ -235,7 +239,7 @@ describe('PaymentsService', () => {
   });
 
   describe('handlePaymentIntentSucceeded', () => {
-    const event: StripeEvent = {
+    const event: StripeEvent<StripePaymentIntent> = {
       id: 'evt_1',
       type: 'payment_intent.succeeded',
       data: {
@@ -345,7 +349,7 @@ describe('PaymentsService', () => {
       const txBooking = { ...booking, slot: { ...booking.slot } };
       const { txSave } = mockPaymentTransaction({ booking: txBooking });
 
-      const mismatchEvent: StripeEvent = {
+      const mismatchEvent: StripeEvent<StripePaymentIntent> = {
         ...event,
         data: {
           object: {
@@ -368,7 +372,7 @@ describe('PaymentsService', () => {
       const txBooking = { ...booking, slot: { ...booking.slot } };
       const { txSave } = mockPaymentTransaction({ booking: txBooking });
 
-      const mismatchEvent: StripeEvent = {
+      const mismatchEvent: StripeEvent<StripePaymentIntent> = {
         ...event,
         data: {
           object: {
@@ -410,7 +414,7 @@ describe('PaymentsService', () => {
     });
 
     it('returns early when bookingId metadata is missing', async () => {
-      const missingMetadataEvent: StripeEvent = {
+      const missingMetadataEvent: StripeEvent<StripePaymentIntent> = {
         ...event,
         data: {
           object: {
@@ -459,16 +463,20 @@ describe('PaymentsService', () => {
   });
 
   describe('refundAndCancel', () => {
-    it('refunds rejected payment on cancelled booking without changing status', async () => {
+    it('initiates refund for cancelled booking and sets status to RefundPending', async () => {
       const cancelledBooking = {
         ...booking,
         status: BookingStatus.Cancelled,
         stripePaymentIntentId: 'pi_1',
       } as Booking;
+      const refundPendingBooking = {
+        ...cancelledBooking,
+        status: BookingStatus.RefundPending,
+      } as Booking;
 
       bookingsService.findBookingRaw
         .mockResolvedValueOnce(cancelledBooking)
-        .mockResolvedValueOnce(cancelledBooking);
+        .mockResolvedValueOnce(refundPendingBooking);
       paymentsRepo.findOne.mockResolvedValue({
         id: 'pay_1',
         bookingId,
@@ -492,12 +500,16 @@ describe('PaymentsService', () => {
       expect(stripe.createRefund).toHaveBeenCalledWith(
         'pi_1',
         `refund-${bookingId}`,
+        {
+          bookingId,
+          cancellationReason: BookingCancellationReason.AdminCancelled,
+        },
       );
-      expect(result.status).toBe(BookingStatus.Cancelled);
+      expect(result.status).toBe(BookingStatus.RefundPending);
       expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
     });
 
-    it('issues refund and marks booking refunded', async () => {
+    it('initiates refund before DB transaction and sets booking to RefundPending', async () => {
       const paidBooking = {
         ...booking,
         status: BookingStatus.Confirmed,
@@ -508,14 +520,8 @@ describe('PaymentsService', () => {
         .mockResolvedValueOnce(paidBooking)
         .mockResolvedValueOnce({
           ...paidBooking,
-          status: BookingStatus.Refunded,
+          status: BookingStatus.RefundPending,
         });
-      bookingsService.findBookingWithEmailRelations.mockResolvedValue({
-        ...paidBooking,
-        status: BookingStatus.Refunded,
-        user: paidBooking.user,
-        slot: paidBooking.slot,
-      });
       paymentsRepo.findOne.mockResolvedValue({
         id: 'pay_1',
         bookingId,
@@ -542,9 +548,43 @@ describe('PaymentsService', () => {
       expect(stripe.createRefund).toHaveBeenCalledWith(
         'pi_1',
         `refund-${bookingId}`,
+        {
+          bookingId,
+          cancellationReason: BookingCancellationReason.UserCancelled,
+        },
       );
-      expect(lifecycle.onBookingCancelled).toHaveBeenCalled();
-      expect(result.status).toBe(BookingStatus.Refunded);
+      expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+      expect(result.status).toBe(BookingStatus.RefundPending);
+    });
+
+    it('throws when booking is already RefundPending', async () => {
+      bookingsService.findBookingRaw.mockResolvedValue({
+        ...booking,
+        status: BookingStatus.RefundPending,
+      });
+
+      await expect(
+        service.refundAndCancel(
+          bookingId,
+          BookingCancellationReason.UserCancelled,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(stripe.createRefund).not.toHaveBeenCalled();
+    });
+
+    it('throws when booking is already Refunded', async () => {
+      bookingsService.findBookingRaw.mockResolvedValue({
+        ...booking,
+        status: BookingStatus.Refunded,
+      });
+
+      await expect(
+        service.refundAndCancel(
+          bookingId,
+          BookingCancellationReason.UserCancelled,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(stripe.createRefund).not.toHaveBeenCalled();
     });
 
     it('throws when no refundable payment exists', async () => {
@@ -571,8 +611,7 @@ describe('PaymentsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    // H6 — Pending booking refund path
-    it('issues refund for pending booking without updating its status', async () => {
+    it('initiates refund for pending booking and sets status to RefundPending', async () => {
       const pendingWithIntent = {
         ...booking,
         status: BookingStatus.Pending,
@@ -581,7 +620,10 @@ describe('PaymentsService', () => {
 
       bookingsService.findBookingRaw
         .mockResolvedValueOnce(pendingWithIntent)
-        .mockResolvedValueOnce(pendingWithIntent);
+        .mockResolvedValueOnce({
+          ...pendingWithIntent,
+          status: BookingStatus.RefundPending,
+        });
       paymentsRepo.findOne.mockResolvedValue({
         id: 'pay_1',
         bookingId,
@@ -604,9 +646,13 @@ describe('PaymentsService', () => {
       expect(stripe.createRefund).toHaveBeenCalledWith(
         'pi_1',
         `refund-${bookingId}`,
+        {
+          bookingId,
+          cancellationReason: BookingCancellationReason.AdminCancelled,
+        },
       );
       expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
-      expect(result.status).toBe(BookingStatus.Pending);
+      expect(result.status).toBe(BookingStatus.RefundPending);
     });
 
     it('throws when Stripe refund fails', async () => {
@@ -636,7 +682,137 @@ describe('PaymentsService', () => {
       expect(stripe.createRefund).toHaveBeenCalledWith(
         'pi_1',
         `refund-${bookingId}`,
+        {
+          bookingId,
+          cancellationReason: BookingCancellationReason.UserCancelled,
+        },
       );
+    });
+  });
+
+  describe('handleRefundUpdated', () => {
+    const refundId = 're_1';
+    const paymentIntentId = 'pi_1';
+
+    const makeRefundEvent = (
+      status: string,
+      meta?: Record<string, string>,
+    ): StripeEvent<StripeRefundObject> => ({
+      id: 'evt_refund_1',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: refundId,
+          status,
+          payment_intent: paymentIntentId,
+          metadata: {
+            bookingId,
+            cancellationReason: BookingCancellationReason.UserCancelled,
+            ...meta,
+          },
+        },
+      },
+    });
+
+    it('ignores event when refund status is not succeeded', async () => {
+      await service.handleRefundUpdated(makeRefundEvent('pending'));
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('skips when no payment found for stripeRefundId', async () => {
+      dataSource.transaction.mockImplementation(
+        async (fn: (manager: unknown) => Promise<void>) => {
+          const manager = { findOne: jest.fn().mockResolvedValue(null) };
+          return fn(manager);
+        },
+      );
+
+      await service.handleRefundUpdated(makeRefundEvent('succeeded'));
+      expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+    });
+
+    it('skips when payment is already Refunded (idempotency)', async () => {
+      dataSource.transaction.mockImplementation(
+        async (fn: (manager: unknown) => Promise<void>) => {
+          const manager = {
+            findOne: jest.fn().mockResolvedValue({
+              id: 'pay_1',
+              status: PaymentStatus.Refunded,
+              stripeRefundId: refundId,
+            }),
+          };
+          return fn(manager);
+        },
+      );
+
+      await service.handleRefundUpdated(makeRefundEvent('succeeded'));
+      expect(lifecycle.onBookingCancelled).not.toHaveBeenCalled();
+    });
+
+    it('updates payment and booking to Refunded and sends cancellation email', async () => {
+      const confirmedBooking = {
+        ...booking,
+        status: BookingStatus.RefundPending,
+        stripePaymentIntentId: paymentIntentId,
+      } as Booking;
+      const payment = {
+        id: 'pay_1',
+        bookingId,
+        status: PaymentStatus.Succeeded,
+        stripeRefundId: refundId,
+      } as Payment;
+
+      const txSave = jest
+        .fn()
+        .mockImplementation((row) => Promise.resolve(row));
+      dataSource.transaction.mockImplementation(
+        async (fn: (manager: unknown) => Promise<void>) => {
+          const manager = {
+            findOne: jest
+              .fn()
+              .mockResolvedValueOnce(payment)
+              .mockResolvedValueOnce(confirmedBooking),
+            save: txSave,
+          };
+          return fn(manager);
+        },
+      );
+      bookingsService.findBookingWithEmailRelations.mockResolvedValue({
+        ...confirmedBooking,
+        user: booking.user,
+        slot: booking.slot,
+      });
+
+      await service.handleRefundUpdated(makeRefundEvent('succeeded'));
+
+      expect(txSave).toHaveBeenCalledWith(
+        expect.objectContaining({ status: PaymentStatus.Refunded }),
+      );
+      expect(txSave).toHaveBeenCalledWith(
+        expect.objectContaining({ status: BookingStatus.Refunded }),
+      );
+      expect(lifecycle.onBookingCancelled).toHaveBeenCalledWith(
+        expect.objectContaining({ id: bookingId }),
+        BookingCancellationReason.UserCancelled,
+      );
+    });
+
+    it('warns and skips when bookingId metadata is missing', async () => {
+      const event: StripeEvent<StripeRefundObject> = {
+        id: 'evt_1',
+        type: 'refund.updated',
+        data: {
+          object: {
+            id: refundId,
+            status: 'succeeded',
+            payment_intent: paymentIntentId,
+            metadata: {},
+          },
+        },
+      };
+
+      await service.handleRefundUpdated(event);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });
 

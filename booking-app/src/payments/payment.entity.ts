@@ -30,6 +30,15 @@ export class Payment {
   })
   stripeEventId: string;
 
+  @Column({
+    name: 'stripe_refund_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    unique: true,
+  })
+  stripeRefundId: string | null;
+
   @Column({ name: 'amount', type: 'decimal', precision: 10, scale: 2 })
   amount: number;
 

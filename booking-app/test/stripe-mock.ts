@@ -1,6 +1,9 @@
 import type { Slot } from '../src/slots/slot.entity';
 import { toStripeCents } from '../src/payments/payment.util';
-import type { StripeEvent } from '../src/payments/stripe.types';
+import type {
+  StripeEvent,
+  StripePaymentIntent,
+} from '../src/payments/stripe.types';
 
 export type StripeMock = {
   constructWebhookEvent: jest.Mock;
@@ -18,7 +21,7 @@ export const buildPaymentIntentSucceededEvent = (options: {
   eventId?: string;
   paymentIntentId?: string;
   currency?: string;
-}): StripeEvent => ({
+}): StripeEvent<StripePaymentIntent> => ({
   id: options.eventId ?? `evt_${Date.now()}`,
   type: 'payment_intent.succeeded',
   data: {

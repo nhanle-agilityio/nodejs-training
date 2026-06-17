@@ -30,7 +30,7 @@ export class StripeService {
       payload,
       signature,
       webhookSecret,
-    ) as StripeEvent;
+    );
   }
 
   async retrieveCheckoutSession(
@@ -51,9 +51,10 @@ export class StripeService {
   async createRefund(
     paymentIntentId: string,
     idempotencyKey: string,
+    metadata?: Record<string, string>,
   ): Promise<StripeRefund> {
     return this.stripe.refunds.create(
-      { payment_intent: paymentIntentId },
+      { payment_intent: paymentIntentId, metadata },
       { idempotencyKey },
     );
   }

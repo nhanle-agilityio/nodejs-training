@@ -26,6 +26,7 @@ import {
   StripeCheckoutSessionCreateParams,
   type StripeEvent,
   type StripePaymentIntent,
+  type StripeRefundObject,
 } from './stripe.types';
 
 export interface CheckoutSessionResult {
@@ -281,7 +282,9 @@ export class PaymentsService {
     };
   }
 
-  async handlePaymentIntentSucceeded(event: StripeEvent): Promise<void> {
+  async handlePaymentIntentSucceeded(
+    event: StripeEvent<StripePaymentIntent>,
+  ): Promise<void> {
     const paymentIntent = event.data.object;
     const bookingId = paymentIntent.metadata?.bookingId;
 
@@ -321,6 +324,15 @@ export class PaymentsService {
       throw new NotFoundException('Booking not found');
     }
 
+    if (
+      booking.status === BookingStatus.RefundPending ||
+      booking.status === BookingStatus.Refunded
+    ) {
+      throw new BadRequestException(
+        'Refund is already in progress or completed for this booking',
+      );
+    }
+
     const payment = await this.payments.findOne({
       where: [
         { bookingId, status: PaymentStatus.Succeeded },
@@ -333,42 +345,102 @@ export class PaymentsService {
       throw new BadRequestException('No refundable payment for this booking');
     }
 
+    let refundId: string;
     try {
-      await this.stripe.createRefund(
+      const refund = await this.stripe.createRefund(
         booking.stripePaymentIntentId,
         `refund-${bookingId}`,
+        { bookingId, cancellationReason: reason },
       );
+      refundId = refund.id;
     } catch (err) {
       this.logger.error(
         `Stripe refund failed for booking ${bookingId}: ${(err as Error).message}`,
       );
-
       throw new BadRequestException('Stripe refund failed');
     }
 
-    const wasConfirmed = booking.status === BookingStatus.Confirmed;
-
     await this.dataSource.transaction(async (manager) => {
-      payment.status = PaymentStatus.Refunded;
-      if (wasConfirmed) {
-        booking.status = BookingStatus.Refunded;
-      }
-      await manager.save(payment);
+      booking.status = BookingStatus.RefundPending;
+      payment.stripeRefundId = refundId;
       await manager.save(booking);
+      await manager.save(payment);
     });
-
-    if (wasConfirmed) {
-      const cancelledBooking =
-        await this.bookingsService.findBookingWithEmailRelations(bookingId);
-      if (cancelledBooking) {
-        await this.lifecycle.onBookingCancelled(cancelledBooking, reason);
-      }
-    }
 
     const bookingUpdated = await this.bookingsService.findBookingRaw(bookingId);
     if (!bookingUpdated) {
       throw new NotFoundException('Booking not found');
     }
     return bookingUpdated;
+  }
+
+  async handleRefundUpdated(
+    event: StripeEvent<StripeRefundObject>,
+  ): Promise<void> {
+    const refund = event.data.object;
+
+    if (refund.status !== 'succeeded') {
+      return;
+    }
+
+    const bookingId = refund.metadata?.bookingId;
+    if (!bookingId) {
+      this.logger.warn(
+        `refund.updated missing bookingId metadata: refund=${refund.id}`,
+      );
+      return;
+    }
+
+    const confirmed = await this.dataSource.transaction(async (manager) => {
+      const payment = await manager.findOne(Payment, {
+        where: { stripeRefundId: refund.id },
+      });
+
+      if (!payment) {
+        this.logger.warn(
+          `refund.updated: no payment found for stripeRefundId=${refund.id}`,
+        );
+        return false;
+      }
+
+      if (payment.status === PaymentStatus.Refunded) {
+        return false;
+      }
+
+      const booking = await manager.findOne(Booking, {
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        this.logger.warn(
+          `refund.updated: booking ${bookingId} not found for refund=${refund.id}`,
+        );
+        return false;
+      }
+
+      payment.status = PaymentStatus.Refunded;
+      booking.status = BookingStatus.Refunded;
+      await manager.save(payment);
+      await manager.save(booking);
+      return true;
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const cancellationReason =
+      (refund.metadata?.cancellationReason as BookingCancellationReason) ??
+      BookingCancellationReason.UserCancelled;
+
+    const bookingWithRelations =
+      await this.bookingsService.findBookingWithEmailRelations(bookingId);
+
+    if (bookingWithRelations) {
+      await this.lifecycle.onBookingCancelled(
+        bookingWithRelations,
+        cancellationReason,
+      );
+    }
   }
 }

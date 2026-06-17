@@ -18,6 +18,7 @@ export enum BookingStatus {
   Pending = 'PENDING',
   Confirmed = 'CONFIRMED',
   Cancelled = 'CANCELLED',
+  RefundPending = 'REFUND_PENDING',
   Refunded = 'REFUNDED',
 }
 

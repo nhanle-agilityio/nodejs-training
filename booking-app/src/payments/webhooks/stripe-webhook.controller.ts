@@ -14,7 +14,11 @@ import { Public } from '../../common/decorators/public.decorator';
 import type { RawBodyRequest } from '../../common/types/raw-body-request';
 import { PaymentsService } from '../payments.service';
 import { StripeService } from '../stripe.service';
-import type { StripeEvent } from '../stripe.types';
+import type {
+  StripeEvent,
+  StripePaymentIntent,
+  StripeRefundObject,
+} from '../stripe.types';
 
 @ApiExcludeController()
 @SkipThrottle()
@@ -55,7 +59,13 @@ export class StripeWebhookController {
     this.logger.log(`Stripe event ${event.type} id=${event.id}`);
 
     if (event.type === 'payment_intent.succeeded') {
-      await this.paymentsService.handlePaymentIntentSucceeded(event);
+      await this.paymentsService.handlePaymentIntentSucceeded(
+        event as StripeEvent<StripePaymentIntent>,
+      );
+    } else if (event.type === 'refund.updated') {
+      await this.paymentsService.handleRefundUpdated(
+        event as StripeEvent<StripeRefundObject>,
+      );
     }
 
     return { received: true, type: event.type };
