@@ -20,7 +20,7 @@ export class SlotResponseDto {
   endTime: Date;
 
   @Expose()
-  @ApiProperty({ example: '50.00' })
+  @ApiProperty({ example: 50.0 })
   price: number;
 
   @Expose()

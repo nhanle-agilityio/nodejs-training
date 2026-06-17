@@ -28,7 +28,13 @@ export class Slot {
   @Column({ name: 'end_time', type: 'timestamptz' })
   endTime: Date;
 
-  @Column({ name: 'price', type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    name: 'price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: { to: (v: number) => v, from: (v: string) => parseFloat(v) },
+  })
   price: number;
 
   @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.Open })

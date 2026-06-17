@@ -39,7 +39,13 @@ export class Payment {
   })
   stripeRefundId: string | null;
 
-  @Column({ name: 'amount', type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    name: 'amount',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: { to: (v: number) => v, from: (v: string) => parseFloat(v) },
+  })
   amount: number;
 
   @Column({ type: 'enum', enum: PaymentStatus })

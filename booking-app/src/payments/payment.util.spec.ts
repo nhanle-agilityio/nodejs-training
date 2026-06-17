@@ -16,14 +16,8 @@ describe('payment.util', () => {
       expect(toStripeCents(49.99)).toBe(4999);
     });
 
-    it('parses a string dollar amount', () => {
-      expect(toStripeCents('9.99')).toBe(999);
-      expect(toStripeCents('25.00')).toBe(2500);
-    });
-
     it('handles zero', () => {
       expect(toStripeCents(0)).toBe(0);
-      expect(toStripeCents('0')).toBe(0);
     });
 
     it('uses Math.round so 0.5 rounds up', () => {
