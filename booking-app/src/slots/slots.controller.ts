@@ -27,7 +27,10 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { CheckPolicies } from '../casl/policies.decorator';
 import { Action } from '../casl/casl.types';
-import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { BadRequestResponseDto } from '../common/dto/bad-request-response.dto';
+import { UnauthorizedResponseDto } from '../common/dto/unauthorized-response.dto';
+import { ForbiddenResponseDto } from '../common/dto/forbidden-response.dto';
+import { NotFoundResponseDto } from '../common/dto/not-found-response.dto';
 import { Slot } from './slot.entity';
 import { SlotsService } from './slots.service';
 import { CreateSlotDto } from './dto/create-slot.dto';
@@ -56,7 +59,7 @@ export class SlotsController {
   })
   @ApiBadRequestResponse({
     description: 'Invalid query parameters',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   async getAllSlots(
     @Query() query: SlotsQueryDto,
@@ -79,11 +82,11 @@ export class SlotsController {
   @ApiOkResponse({ description: 'Slot details', type: SlotResponseDto })
   @ApiBadRequestResponse({
     description: 'Invalid UUID format',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Slot not found',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   async getSlotById(
     @Param('id', ParseUUIDPipe) id: string,
@@ -108,15 +111,15 @@ export class SlotsController {
   })
   @ApiBadRequestResponse({
     description: 'Validation error in request body',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiForbiddenResponse({
     description: 'Admin role required',
-    type: ErrorResponseDto,
+    type: ForbiddenResponseDto,
   })
   async createSlot(@Body() dto: CreateSlotDto): Promise<SlotResponseDto> {
     const slot = await this.slotsService.createSlot(dto);
@@ -141,19 +144,19 @@ export class SlotsController {
   })
   @ApiBadRequestResponse({
     description: 'Validation error or invalid UUID',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiForbiddenResponse({
     description: 'Admin role required',
-    type: ErrorResponseDto,
+    type: ForbiddenResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Slot not found',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   async updateSlot(
     @Param('id', ParseUUIDPipe) id: string,
@@ -179,19 +182,19 @@ export class SlotsController {
   @ApiNoContentResponse({ description: 'Slot deleted successfully' })
   @ApiBadRequestResponse({
     description: 'Invalid UUID format',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiForbiddenResponse({
     description: 'Admin role required',
-    type: ErrorResponseDto,
+    type: ForbiddenResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Slot not found',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   async deleteSlot(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.slotsService.deleteSlot(id);

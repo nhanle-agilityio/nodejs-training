@@ -1,18 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class ErrorResponseDto {
+export class NotFoundResponseDto {
   @ApiProperty({ example: 404 })
   statusCode: number;
 
   @ApiProperty({ example: 'Not Found' })
   error: string;
 
-  @ApiProperty({ example: 'Booking not found' })
+  @ApiProperty({ example: 'Resource not found' })
   message: string | string[];
 
-  @ApiProperty({ example: '/api/bookings/123' })
+  @ApiProperty({ example: '/api/current_endpoint/id' })
   path: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2024-06-17T00:00:00.000Z' })
   timestamp: string;
 }

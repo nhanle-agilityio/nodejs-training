@@ -25,10 +25,14 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { CheckPolicies } from '../casl/policies.decorator';
 import { Action } from '../casl/casl.types';
+import { BadRequestResponseDto } from '../common/dto/bad-request-response.dto';
+import { UnauthorizedResponseDto } from '../common/dto/unauthorized-response.dto';
+import { ForbiddenResponseDto } from '../common/dto/forbidden-response.dto';
+import { NotFoundResponseDto } from '../common/dto/not-found-response.dto';
+import { ConflictResponseDto } from '../common/dto/conflict-response.dto';
 import { Booking } from './booking.entity';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -65,24 +69,24 @@ export class BookingsController {
   })
   @ApiBadRequestResponse({
     description: 'Slot not available or slot start time has already passed',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiForbiddenResponse({
     description:
       'Non-admin user supplied a userId to book on behalf of another user',
-    type: ErrorResponseDto,
+    type: ForbiddenResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Slot not found',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   @ApiConflictResponse({
     description: 'Slot already has an active booking',
-    type: ErrorResponseDto,
+    type: ConflictResponseDto,
   })
   async createBooking(
     @CurrentUser() user: User | undefined,
@@ -114,6 +118,7 @@ export class BookingsController {
       targetUserId,
       dto.slotId,
     );
+
     return plainToInstance(BookingResponseDto, booking, {
       excludeExtraneousValues: true,
     });
@@ -132,11 +137,11 @@ export class BookingsController {
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiForbiddenResponse({
     description: 'Admin role required',
-    type: ErrorResponseDto,
+    type: ForbiddenResponseDto,
   })
   async getBookings(
     @Query() query: BookingsQueryDto,
@@ -144,9 +149,7 @@ export class BookingsController {
     const result = await this.bookingsService.getAllBookings(query);
 
     return mapPaginatedItems(result, (b) =>
-      plainToInstance(BookingResponseDto, b, {
-        excludeExtraneousValues: true,
-      }),
+      plainToInstance(BookingResponseDto, b, { excludeExtraneousValues: true }),
     );
   }
 
@@ -162,7 +165,7 @@ export class BookingsController {
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   async getMyBookings(
     @CurrentUser() user: User | undefined,
@@ -178,9 +181,7 @@ export class BookingsController {
     });
 
     return mapPaginatedItems(result, (b) =>
-      plainToInstance(BookingResponseDto, b, {
-        excludeExtraneousValues: true,
-      }),
+      plainToInstance(BookingResponseDto, b, { excludeExtraneousValues: true }),
     );
   }
 
@@ -194,15 +195,15 @@ export class BookingsController {
   @ApiOkResponse({ description: 'Booking details', type: BookingResponseDto })
   @ApiBadRequestResponse({
     description: 'Invalid UUID format',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Booking not found or does not belong to the current user',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   async getBookingById(
     @CurrentUser() user: User | undefined,
@@ -235,15 +236,15 @@ export class BookingsController {
   @ApiBadRequestResponse({
     description:
       'Booking cannot be cancelled — wrong status, refund already in progress, or Stripe error',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Booking not found or does not belong to the current user',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   async cancelBooking(
     @CurrentUser() user: User | undefined,

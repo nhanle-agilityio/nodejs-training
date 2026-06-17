@@ -15,8 +15,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { BadRequestResponseDto } from '../common/dto/bad-request-response.dto';
+import { UnauthorizedResponseDto } from '../common/dto/unauthorized-response.dto';
+import { NotFoundResponseDto } from '../common/dto/not-found-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/user.entity';
 import { CheckoutSessionResponseDto } from './dto/checkout-session-response.dto';
@@ -43,15 +45,15 @@ export class PaymentsController {
   @ApiBadRequestResponse({
     description:
       'Booking is not in PENDING status, payment window has expired, or slot is no longer available',
-    type: ErrorResponseDto,
+    type: BadRequestResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Booking not found or does not belong to the current user',
-    type: ErrorResponseDto,
+    type: NotFoundResponseDto,
   })
   async createCheckoutSession(
     @CurrentUser() user: User | undefined,

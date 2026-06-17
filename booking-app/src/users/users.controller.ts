@@ -5,7 +5,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { UnauthorizedResponseDto } from '../common/dto/unauthorized-response.dto';
 import { Controller, Get } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -28,7 +28,7 @@ export class UsersController {
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid token',
-    type: ErrorResponseDto,
+    type: UnauthorizedResponseDto,
   })
   getCurrentUser(@CurrentUser() user: User): UserResponseDto {
     return plainToInstance(UserResponseDto, user, {
