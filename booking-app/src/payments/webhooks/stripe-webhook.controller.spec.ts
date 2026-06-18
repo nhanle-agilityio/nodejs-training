@@ -6,12 +6,16 @@ import { StripeWebhookController } from './stripe-webhook.controller';
 
 describe('StripeWebhookController', () => {
   let controller: StripeWebhookController;
-  let paymentsService: { handlePaymentIntentSucceeded: jest.Mock };
+  let paymentsService: {
+    handlePaymentIntentSucceeded: jest.Mock;
+    handleRefundUpdated: jest.Mock;
+  };
   let stripeService: { constructWebhookEvent: jest.Mock };
 
   beforeEach(async () => {
     paymentsService = {
       handlePaymentIntentSucceeded: jest.fn().mockResolvedValue(undefined),
+      handleRefundUpdated: jest.fn().mockResolvedValue(undefined),
     };
     stripeService = {
       constructWebhookEvent: jest.fn().mockReturnValue({
@@ -87,5 +91,31 @@ describe('StripeWebhookController', () => {
     await expect(
       controller.handle({ rawBody: Buffer.from('{}') } as never, 'sig_test'),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('routes refund.updated events to handleRefundUpdated', async () => {
+    const refundEvent = {
+      id: 'evt_3',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_1',
+          status: 'succeeded',
+          metadata: { bookingId: 'b1' },
+        },
+      },
+    };
+    stripeService.constructWebhookEvent.mockReturnValue(refundEvent);
+
+    const result = await controller.handle(
+      { rawBody: Buffer.from('{}') } as never,
+      'sig_test',
+    );
+
+    expect(paymentsService.handleRefundUpdated).toHaveBeenCalledWith(
+      refundEvent,
+    );
+    expect(paymentsService.handlePaymentIntentSucceeded).not.toHaveBeenCalled();
+    expect(result).toEqual({ received: true, type: 'refund.updated' });
   });
 });

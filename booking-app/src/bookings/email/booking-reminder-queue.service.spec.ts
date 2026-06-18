@@ -104,6 +104,8 @@ describe('BookingReminderQueueService', () => {
   });
 
   it('leaves active jobs untouched', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-10T12:00:00.000Z') });
+
     const existing = {
       getState: jest.fn().mockResolvedValue('active'),
       changeDelay: jest.fn(),
@@ -115,6 +117,8 @@ describe('BookingReminderQueueService', () => {
     expect(ok).toBe(true);
     expect(emailQueue.add).not.toHaveBeenCalled();
     expect(existing.changeDelay).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
   });
 
   it('replaces failed jobs with a fresh delayed job', async () => {

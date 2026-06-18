@@ -3,6 +3,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { Booking, BookingStatus } from '../src/bookings/booking.entity';
+import { Payment, PaymentStatus } from '../src/payments/payment.entity';
 import { Slot, SlotStatus } from '../src/slots/slot.entity';
 import { User, UserRole } from '../src/users/user.entity';
 import { cleanBookingE2eTables, saveOpenSlot } from './bookings-e2e-helpers';
@@ -233,5 +234,52 @@ describe('Bookings (e2e)', () => {
     expect((res.body as { data: { status: string } }).data.status).toBe(
       BookingStatus.Cancelled,
     );
+  });
+
+  it('PATCH /api/bookings/:id/cancel triggers async refund for a CONFIRMED booking', async () => {
+    const userRepo = dataSource.getRepository(User);
+    const slotRepo = dataSource.getRepository(Slot);
+    const bookingRepo = dataSource.getRepository(Booking);
+    const paymentRepo = dataSource.getRepository(Payment);
+
+    const user = await userRepo.save(
+      userRepo.create({
+        clerkId: `e2e_refund_${Date.now()}`,
+        email: `e2e-refund-${Date.now()}@test.local`,
+        name: 'Refund User',
+        role: UserRole.User,
+      }),
+    );
+    const slot = await saveOpenSlot(slotRepo);
+    const booking = await bookingRepo.save(
+      bookingRepo.create({
+        userId: user.id,
+        slotId: slot.id,
+        status: BookingStatus.Confirmed,
+        stripePaymentIntentId: `pi_refund_${Date.now()}`,
+      }),
+    );
+    await paymentRepo.save(
+      paymentRepo.create({
+        bookingId: booking.id,
+        stripeEventId: `evt_refund_${Date.now()}`,
+        amount: slot.price,
+        status: PaymentStatus.Succeeded,
+      }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .patch(`/api/bookings/${booking.id}/cancel`)
+      .set('x-test-user-id', user.id)
+      .expect(200);
+
+    expect((res.body as { data: { status: string } }).data.status).toBe(
+      BookingStatus.RefundPending,
+    );
+
+    const updatedPayment = await paymentRepo.findOneBy({
+      bookingId: booking.id,
+    });
+    expect(updatedPayment?.stripeRefundId).not.toBeNull();
   });
 });

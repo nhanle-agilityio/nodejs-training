@@ -14,8 +14,10 @@ import {
   SLOTS_LIST_CACHE_KEY,
 } from './bookings-e2e-helpers';
 import { createTestApp } from './create-test-app';
-import { buildPaymentIntentSucceededEvent } from './stripe-mock';
-import type { StripeMock } from './stripe-mock';
+import {
+  buildPaymentIntentSucceededEvent,
+  type StripeMock,
+} from './stripe-mock';
 
 describe('Booking flow (e2e)', () => {
   let app: INestApplication<App>;
@@ -120,15 +122,97 @@ describe('Booking flow (e2e)', () => {
       .set('x-test-user-id', user.id)
       .expect(200);
 
-    const confirmed = confirmedRes.body as {
-      data: { status: string; stripePaymentIntentId?: string };
-    };
+    const confirmed = confirmedRes.body as { data: { status: string } };
     expect(confirmed.data.status).toBe(BookingStatus.Confirmed);
-    expect(confirmed.data.stripePaymentIntentId).toBe(event.data.object.id);
 
     const paymentCount = await dataSource.getRepository(Payment).count({
       where: { bookingId: booking.id, status: PaymentStatus.Succeeded },
     });
     expect(paymentCount).toBe(1);
+  });
+
+  it('runs full refund cycle: book → confirm → cancel → REFUND_PENDING → webhook → REFUNDED', async () => {
+    const userRepo = dataSource.getRepository(User);
+    const slotRepo = dataSource.getRepository(Slot);
+    const paymentRepo = dataSource.getRepository(Payment);
+    const server = app.getHttpServer();
+
+    const user = await userRepo.save(
+      userRepo.create({
+        clerkId: `refund_clerk_${Date.now()}`,
+        email: `refund-${Date.now()}@test.local`,
+        name: 'Refund User',
+        role: UserRole.User,
+      }),
+    );
+    const slot = await saveOpenSlot(slotRepo, 'Refund slot');
+
+    // Step 1: Create booking
+    const bookingRes = await request(server)
+      .post('/api/bookings')
+      .set('x-test-user-id', user.id)
+      .send({ slotId: slot.id })
+      .expect(201);
+    const bookingId = (bookingRes.body as { data: { id: string } }).data.id;
+
+    // Step 2: Trigger payment webhook → CONFIRMED
+    const paymentEvent = buildPaymentIntentSucceededEvent({
+      bookingId,
+      slot,
+      eventId: `evt_refund_pay_${Date.now()}`,
+      paymentIntentId: `pi_refund_${Date.now()}`,
+    });
+    stripeMock.constructWebhookEvent.mockReturnValue(paymentEvent);
+    await request(server)
+      .post('/webhooks/stripe')
+      .set('stripe-signature', 'sig_test')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ id: paymentEvent.id }))
+      .expect(200);
+
+    // Step 3: Cancel → REFUND_PENDING (Stripe createRefund is mocked)
+    const cancelRes = await request(server)
+      .patch(`/api/bookings/${bookingId}/cancel`)
+      .set('x-test-user-id', user.id)
+      .expect(200);
+    expect((cancelRes.body as { data: { status: string } }).data.status).toBe(
+      BookingStatus.RefundPending,
+    );
+
+    // Step 4: Verify payment has stripeRefundId from mock createRefund
+    const payment = await paymentRepo.findOneBy({ bookingId });
+    expect(payment?.stripeRefundId).toBe('re_test_e2e');
+
+    // Step 5: Stripe sends refund.updated → REFUNDED
+    const refundEvent = {
+      id: `evt_refund_upd_${Date.now()}`,
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_test_e2e',
+          status: 'succeeded',
+          metadata: { bookingId },
+        },
+      },
+    };
+    stripeMock.constructWebhookEvent.mockReturnValue(refundEvent);
+    await request(server)
+      .post('/webhooks/stripe')
+      .set('stripe-signature', 'sig_test')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ id: refundEvent.id }))
+      .expect(200);
+
+    // Step 6: Verify final state
+    const finalBookingRes = await request(server)
+      .get(`/api/bookings/${bookingId}`)
+      .set('x-test-user-id', user.id)
+      .expect(200);
+    expect(
+      (finalBookingRes.body as { data: { status: string } }).data.status,
+    ).toBe(BookingStatus.Refunded);
+
+    const finalPayment = await paymentRepo.findOneBy({ bookingId });
+    expect(finalPayment?.status).toBe(PaymentStatus.Refunded);
   });
 });

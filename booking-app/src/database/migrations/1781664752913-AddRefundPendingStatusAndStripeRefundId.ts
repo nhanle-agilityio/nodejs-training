@@ -11,6 +11,7 @@ export class AddRefundPendingStatusAndStripeRefundId1781664752913 implements Mig
       `ALTER TABLE "payments" ADD CONSTRAINT "UQ_973ec920676d86e47d67441909b" UNIQUE ("stripe_refund_id")`,
     );
     await queryRunner.query(`ALTER TABLE "slots" DROP COLUMN "status"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."slots_status_enum"`);
     await queryRunner.query(
       `CREATE TYPE "public"."slots_status_enum" AS ENUM('open', 'closed')`,
     );
@@ -18,6 +19,9 @@ export class AddRefundPendingStatusAndStripeRefundId1781664752913 implements Mig
       `ALTER TABLE "slots" ADD "status" "public"."slots_status_enum" NOT NULL DEFAULT 'open'`,
     );
     await queryRunner.query(`ALTER TABLE "payments" DROP COLUMN "status"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."payments_status_enum"`,
+    );
     await queryRunner.query(
       `CREATE TYPE "public"."payments_status_enum" AS ENUM('SUCCEEDED', 'FAILED', 'REFUNDED')`,
     );
@@ -29,12 +33,16 @@ export class AddRefundPendingStatusAndStripeRefundId1781664752913 implements Mig
     );
     await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN "status"`);
     await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."bookings_status_enum"`,
+    );
+    await queryRunner.query(
       `CREATE TYPE "public"."bookings_status_enum" AS ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'REFUND_PENDING', 'REFUNDED')`,
     );
     await queryRunner.query(
       `ALTER TABLE "bookings" ADD "status" "public"."bookings_status_enum" NOT NULL DEFAULT 'PENDING'`,
     );
     await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "role"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."users_role_enum"`);
     await queryRunner.query(
       `CREATE TYPE "public"."users_role_enum" AS ENUM('admin', 'user')`,
     );
