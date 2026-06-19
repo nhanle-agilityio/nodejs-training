@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,6 +15,7 @@ export enum SlotStatus {
   Closed = 'closed',
 }
 
+@Index('slots_start_time_idx', ['startTime'])
 @Entity('slots')
 export class Slot {
   @PrimaryGeneratedColumn('uuid')

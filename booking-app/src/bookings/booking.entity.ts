@@ -24,8 +24,10 @@ export enum BookingStatus {
 
 @Index('bookings_active_slot_uidx', ['slotId'], {
   unique: true,
-  where: `"status" IN ('${BookingStatus.Pending}', '${BookingStatus.Confirmed}')`,
+  where: `"status" IN ('PENDING', 'CONFIRMED')`,
 })
+@Index('bookings_user_id_idx', ['userId'])
+@Index('bookings_status_created_at_idx', ['status', 'createdAt'])
 @Entity('bookings')
 export class Booking {
   @PrimaryGeneratedColumn('uuid')

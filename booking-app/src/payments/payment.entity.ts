@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   JoinColumn,
   PrimaryGeneratedColumn,
@@ -14,6 +15,7 @@ export enum PaymentStatus {
   Refunded = 'REFUNDED',
 }
 
+@Index('payments_booking_id_idx', ['bookingId'])
 @Entity('payments')
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
