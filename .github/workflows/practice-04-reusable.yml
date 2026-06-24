@@ -1,0 +1,42 @@
+name: Practice 04 — Reusable Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+        description: Target deployment environment
+      dry-run:
+        type: boolean
+        default: false
+        description: Skip actual deployment steps
+    secrets:
+      deploy-key:
+        required: true
+    outputs:
+      deployed-url:
+        description: URL of the deployed environment
+        value: ${{ jobs.deploy.outputs.deployed-url }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployed-url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Print deployment info
+        run: |
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Dry run: ${{ inputs.dry-run }}"
+          echo "Deploy key present: ${{ secrets.deploy-key != '' }}"
+
+      - id: deploy
+        name: Deploy
+        run: |
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "Dry run — skipping actual deploy"
+          else
+            echo "Deploying to ${{ inputs.environment }}..."
+          fi
+          echo "url=https://${{ inputs.environment }}.example.com" >> $GITHUB_OUTPUT

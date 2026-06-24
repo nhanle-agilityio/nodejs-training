@@ -1,0 +1,59 @@
+name: Practice 03 — Runner + Container + Environment Files
+
+on:
+  workflow_dispatch:
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set environment variables via GITHUB_ENV
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql://localhost:5432/testdb" >> $GITHUB_ENV
+          echo "API_BASE_URL=http://localhost:3000" >> $GITHUB_ENV
+
+      - name: Verify env vars are inherited
+        run: |
+          echo "NODE_ENV=$NODE_ENV"
+          echo "DATABASE_URL=$DATABASE_URL"
+          echo "API_BASE_URL=$API_BASE_URL"
+
+      - name: Add custom path via GITHUB_PATH
+        run: |
+          mkdir -p /tmp/custom/bin
+          echo "/tmp/custom/bin" >> $GITHUB_PATH
+
+      - name: Verify PATH was updated
+        run: echo $PATH | tr ':' '\n' | grep custom
+
+      - name: Write summary
+        run: |
+          echo "## Native Runner Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner OS:** $(uname -a)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Node version:** $(node --version)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment variables set:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`NODE_ENV\` = $NODE_ENV" >> $GITHUB_STEP_SUMMARY
+          echo "- \`DATABASE_URL\` = $DATABASE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- \`API_BASE_URL\` = $API_BASE_URL" >> $GITHUB_STEP_SUMMARY
+
+  containerized:
+    runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine
+      env:
+        NODE_ENV: test
+    steps:
+      - name: Show runtime environment
+        run: |
+          echo "=== Node version (from container) ==="
+          node --version
+          echo ""
+          echo "=== OS Info (should be Alpine, not Ubuntu) ==="
+          cat /etc/os-release
+          echo ""
+          echo "=== NODE_ENV ==="
+          echo $NODE_ENV
