@@ -1,0 +1,46 @@
+# Practice 01 — Triggers & Structure
+name: CI
+
+on: 
+  push:
+    branches: [main, 'feature/**']
+    paths-ignore: ['**.md', docs/**]
+
+  pull_request:
+    branches: [main]
+
+  schedule:
+    - cron: '59 8 * * *'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+      dry-run:
+        type: boolean
+        default: false
+      version:
+        type: string
+        default: latest
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  job-print:
+    name: Job Print Inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Print inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "environment: ${{ inputs.environment }}"
+          echo "dry-run: ${{ inputs.dry-run }}"
+          echo "version: ${{ inputs.version }}"
