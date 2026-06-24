@@ -23,6 +23,10 @@ permissions:
 env:
   NODE_VERSION: '20'
 
+defaults:
+  run:
+    working-directory: ./booking-app
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -33,6 +37,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: booking-app/package-lock.json
       - run: npm ci
       - run: npm run lint
 
@@ -51,6 +56,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+          cache-dependency-path: booking-app/package-lock.json
       - run: npm ci
       - name: Run tests
         run: npm test -- --passWithNoTests
@@ -74,6 +80,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: booking-app/package-lock.json
       - run: npm ci
       - run: npm run build
       - id: tag
