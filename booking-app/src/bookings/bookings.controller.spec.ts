@@ -1,0 +1,303 @@
+import {
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { BookingsController } from './bookings.controller';
+import { BookingsService } from './bookings.service';
+import { UsersService } from '../users/users.service';
+import { User, UserRole } from '../users/user.entity';
+import { Booking, BookingStatus } from './booking.entity';
+
+describe('BookingsController', () => {
+  let controller: BookingsController;
+  let bookingsService: jest.Mocked<
+    Pick<BookingsService, keyof BookingsService>
+  >;
+  let usersService: jest.Mocked<Pick<UsersService, 'findById'>>;
+
+  const user = {
+    id: 'u1111111-1111-1111-1111-111111111111',
+    role: UserRole.User,
+  } as User;
+
+  const admin = {
+    id: 'a1111111-1111-1111-1111-111111111111',
+    role: UserRole.Admin,
+  } as User;
+
+  const targetUser = {
+    id: 't1111111-1111-1111-1111-111111111111',
+    role: UserRole.User,
+  } as User;
+
+  const bookingId = 'b1111111-1111-1111-1111-111111111111';
+  const slotId = 's1111111-1111-1111-1111-111111111111';
+
+  const pendingBooking = {
+    id: bookingId,
+    userId: user.id,
+    slotId,
+    status: BookingStatus.Pending,
+  } as Booking;
+
+  beforeEach(async () => {
+    bookingsService = {
+      createBooking: jest.fn(),
+      getAllBookings: jest.fn(),
+      getBookingsByUser: jest
+        .fn()
+        .mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 }),
+      getBookingById: jest.fn(),
+      cancelBooking: jest.fn(),
+      findBookingRaw: jest.fn(),
+      setStripeSessionId: jest.fn(),
+      findBookingWithEmailRelations: jest.fn(),
+    };
+
+    usersService = {
+      findById: jest.fn(),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      controllers: [BookingsController],
+      providers: [
+        { provide: BookingsService, useValue: bookingsService },
+        { provide: UsersService, useValue: usersService },
+      ],
+    }).compile();
+
+    controller = moduleRef.get(BookingsController);
+  });
+
+  describe('createBooking', () => {
+    it('throws when user is missing', async () => {
+      await expect(
+        controller.createBooking(undefined, { slotId }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('throws when non-admin supplies userId', async () => {
+      await expect(
+        controller.createBooking(user, { slotId, userId: targetUser.id }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws when admin target user is missing', async () => {
+      usersService.findById.mockResolvedValue(null);
+
+      await expect(
+        controller.createBooking(admin, { slotId, userId: targetUser.id }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('calls service with caller id for normal user', async () => {
+      bookingsService.createBooking.mockResolvedValue(pendingBooking);
+
+      const result = await controller.createBooking(user, { slotId });
+
+      expect(bookingsService.createBooking).toHaveBeenCalledWith(
+        user.id,
+        slotId,
+      );
+      expect(result).toMatchObject({
+        id: bookingId,
+        status: BookingStatus.Pending,
+      });
+    });
+
+    it('calls service with resolved target id for admin', async () => {
+      usersService.findById.mockResolvedValue(targetUser);
+      bookingsService.createBooking.mockResolvedValue({
+        ...pendingBooking,
+        userId: targetUser.id,
+      });
+
+      const result = await controller.createBooking(admin, {
+        slotId,
+        userId: targetUser.id,
+      });
+
+      expect(usersService.findById).toHaveBeenCalledWith(targetUser.id);
+      expect(bookingsService.createBooking).toHaveBeenCalledWith(
+        targetUser.id,
+        slotId,
+      );
+      expect(result).toMatchObject({ id: bookingId, userId: targetUser.id });
+    });
+  });
+
+  describe('getBookings', () => {
+    it('passes query through to service with defaults', async () => {
+      bookingsService.getAllBookings.mockResolvedValue({
+        items: [pendingBooking],
+        total: 1,
+        page: 2,
+        limit: 5,
+      });
+
+      const query = {
+        status: BookingStatus.Pending,
+        userId: user.id,
+        slotId,
+        page: 2,
+        limit: 5,
+      };
+      const result = await controller.getBookings(query);
+
+      expect(bookingsService.getAllBookings).toHaveBeenCalledWith(query);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(2);
+      expect(result.limit).toBe(5);
+    });
+
+    it('passes through pagination metadata from service', async () => {
+      bookingsService.getAllBookings.mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
+
+      const result = await controller.getBookings({});
+
+      expect(bookingsService.getAllBookings).toHaveBeenCalledWith({});
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
+    });
+  });
+
+  describe('getMyBookings', () => {
+    it('throws when user missing', async () => {
+      await expect(
+        controller.getMyBookings(undefined, {}),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('returns paginated mapped bookings', async () => {
+      bookingsService.getBookingsByUser.mockResolvedValue({
+        items: [pendingBooking],
+        total: 1,
+        page: 2,
+        limit: 5,
+      });
+
+      const query = {
+        status: BookingStatus.Pending,
+        page: 2,
+        limit: 5,
+      };
+      const dto = await controller.getMyBookings(user, query);
+
+      expect(bookingsService.getBookingsByUser).toHaveBeenCalledWith({
+        userId: user.id,
+        status: BookingStatus.Pending,
+        page: 2,
+        limit: 5,
+      });
+      expect(dto.items).toHaveLength(1);
+      expect(dto.items[0]).toMatchObject({ id: bookingId });
+      expect(dto.total).toBe(1);
+      expect(dto.page).toBe(2);
+      expect(dto.limit).toBe(5);
+    });
+
+    it('passes through pagination metadata from service', async () => {
+      bookingsService.getBookingsByUser.mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
+
+      const dto = await controller.getMyBookings(user, {});
+
+      expect(bookingsService.getBookingsByUser).toHaveBeenCalledWith({
+        userId: user.id,
+        status: undefined,
+        page: undefined,
+        limit: undefined,
+      });
+      expect(dto.page).toBe(1);
+      expect(dto.limit).toBe(20);
+    });
+  });
+
+  describe('getBookingById', () => {
+    it('throws when user missing', async () => {
+      await expect(
+        controller.getBookingById(undefined, bookingId),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('hides booking from non-owner non-admin', async () => {
+      bookingsService.getBookingById.mockResolvedValue({
+        ...pendingBooking,
+        userId: targetUser.id,
+      });
+
+      await expect(
+        controller.getBookingById(user, bookingId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns booking for owner', async () => {
+      bookingsService.getBookingById.mockResolvedValue(pendingBooking);
+
+      const dto = await controller.getBookingById(user, bookingId);
+
+      expect(dto).toMatchObject({ id: bookingId, userId: user.id });
+    });
+
+    it('returns booking for admin even if not owner', async () => {
+      bookingsService.getBookingById.mockResolvedValue({
+        ...pendingBooking,
+        userId: targetUser.id,
+      });
+
+      const dto = await controller.getBookingById(admin, bookingId);
+
+      expect(dto.userId).toBe(targetUser.id);
+    });
+  });
+
+  describe('cancelBooking', () => {
+    it('throws when user missing', async () => {
+      await expect(
+        controller.cancelBooking(undefined, bookingId),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('passes admin flag to service for admins', async () => {
+      bookingsService.cancelBooking.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Cancelled,
+      });
+
+      await controller.cancelBooking(admin, bookingId);
+
+      expect(bookingsService.cancelBooking).toHaveBeenCalledWith(
+        bookingId,
+        admin.id,
+        true,
+      );
+    });
+
+    it('passes admin flag false for users', async () => {
+      bookingsService.cancelBooking.mockResolvedValue({
+        ...pendingBooking,
+        status: BookingStatus.Cancelled,
+      });
+
+      await controller.cancelBooking(user, bookingId);
+
+      expect(bookingsService.cancelBooking).toHaveBeenCalledWith(
+        bookingId,
+        user.id,
+        false,
+      );
+    });
+  });
+});
