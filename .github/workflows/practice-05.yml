@@ -108,6 +108,9 @@ jobs:
     needs: [lint, test, build, integration]
     if: always()
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Write pipeline summary
         run: |
