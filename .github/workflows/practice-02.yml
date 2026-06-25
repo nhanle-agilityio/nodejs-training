@@ -1,0 +1,57 @@
+name: Practice 02 — Matrix + Job Dependencies + Outputs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      node: ${{ steps.version.outputs.node }}
+      app-version: ${{ steps.version.outputs.app-version }}
+    steps:
+      - id: version
+        name: Set version outputs
+        run: |
+          echo "node=20" >> $GITHUB_OUTPUT
+          echo "app-version=1.2.3" >> $GITHUB_OUTPUT
+
+  test:
+    needs: detect
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20]
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - node-version: 20
+            os: ubuntu-latest
+            experimental: true
+        exclude:
+          - node-version: 18
+            os: windows-latest
+    steps:
+      - name: Print matrix info
+        run: |
+          echo "Node version: ${{ matrix.node-version }}"
+          echo "OS: ${{ matrix.os }}"
+          echo "Experimental: ${{ matrix.experimental }}"
+
+  report:
+    needs: [detect, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print app version from detect job
+        run: echo "App version is ${{ needs.detect.outputs.app-version }}"
+
+      - name: Write summary
+        run: |
+          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Info | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| App version | ${{ needs.detect.outputs.app-version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Node (detected) | ${{ needs.detect.outputs.node }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Matrix combinations | 3 (1 excluded) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | All passed |" >> $GITHUB_STEP_SUMMARY
