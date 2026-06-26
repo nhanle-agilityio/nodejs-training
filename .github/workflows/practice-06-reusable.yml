@@ -1,0 +1,40 @@
+name: Practice 06 — Reusable
+
+on:
+  workflow_call:
+    inputs:
+      target-env:
+        type: string
+        required: true
+        description: Target environment name
+    secrets:
+      api-key:
+        required: false
+        description: API key for the target environment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use the secret passed from the caller
+        env:
+          PASSED_API_KEY: ${{ secrets.api-key }}
+        run: |
+          echo "=== Reusable workflow invoked ==="
+          echo "target-env = ${{ inputs.target-env }}"
+          echo "api-key present: ${{ secrets.api-key != '' }}"
+
+          if [ -n "$PASSED_API_KEY" ]; then
+            echo "PASSED_API_KEY is set (masked). Ready to deploy to ${{ inputs.target-env }}"
+          else
+            echo "api-key was not passed or is not set in the caller"
+          fi
+
+      - name: Write step summary
+        run: |
+          {
+            echo "## Reusable Workflow"
+            echo "- Called from: \`practice-06.yml\`"
+            echo "- target-env: \`${{ inputs.target-env }}\`"
+            echo "- Secrets are NOT inherited automatically — must be mapped explicitly or use \`secrets: inherit\`"
+          } >> $GITHUB_STEP_SUMMARY
