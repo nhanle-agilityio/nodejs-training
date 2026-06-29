@@ -1,0 +1,295 @@
+name: Practice 07 — GitHub Actions Marketplace
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# actions/checkout — fetch-depth comparison
+jobs:
+  checkout-fetch-depth:
+    name: "Checkout: fetch-depth comparison"
+    runs-on: ubuntu-latest
+    steps:
+      # Shallow clone (default fetch-depth: 1)
+      - name: Checkout with default fetch-depth (shallow)
+        uses: actions/checkout@v7
+        # fetch-depth defaults to 1 — only the latest commit is fetched.
+        # Fastest option; sufficient for lint / test / build.
+
+      - name: Observe shallow clone
+        run: |
+          echo "=== Commit count with fetch-depth=1 ==="
+          git log --oneline | wc -l   # almost always prints 1
+
+          echo ""
+          echo "=== git describe on shallow clone ==="
+          # git describe needs reachable tag history — fails or degrades on shallow
+          git describe --tags --always 2>&1 || true
+
+      # Full history clone (fetch-depth: 0)
+      - name: Re-checkout with full history (fetch-depth is 0)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # 0 = all commits + all tags
+
+      - name: Observe full history clone
+        run: |
+          echo "=== Commit count with fetch-depth=0 ==="
+          git log --oneline | wc -l   # shows all commits
+
+          echo ""
+          echo "=== Most recent 5 commits ==="
+          git log --oneline -5
+
+          echo ""
+          echo "=== git describe with full history ==="
+          # Works correctly only when tag history is present
+          git describe --tags --always 2>&1 || true
+
+      - name: Write fetch-depth summary
+        run: |
+          COMMIT_COUNT=$(git log --oneline | wc -l | tr -d ' ')
+          {
+            echo "## Checkout: fetch-depth comparison"
+            echo "| fetch-depth | Commits fetched | git describe |"
+            echo "|-------------|----------------|--------------|"
+            echo "| \`1\` (default) | 1 | May fail / degrade |"
+            echo "| \`0\` | $COMMIT_COUNT | Works correctly |"
+            echo ""
+            echo "**Rule:** use \`fetch-depth: 0\` only when you need git history"
+            echo "(semantic versioning, \`git describe\`, changelog generators, SonarQube)."
+          } >> $GITHUB_STEP_SUMMARY
+
+  # actions/setup-node — node-version-file vs node-version + cache: npm
+  setup-node-with-cache:
+    name: "setup-node: node-version-file + cache"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show .nvmrc content
+        run: |
+          echo "=== booking-app/.nvmrc ==="
+          cat booking-app/.nvmrc
+
+      - name: Setup Node.js (reads version from .nvmrc, enables npm cache)
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: 'booking-app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'booking-app/package-lock.json'
+
+      - name: Verify Node version matches .nvmrc
+        run: |
+          echo "node --version  = $(node --version)"
+          echo ".nvmrc content  = $(cat booking-app/.nvmrc)"
+          echo "Expected prefix = v$(cat booking-app/.nvmrc | tr -d '[:space:]')"
+
+      # npm ci reads packages from ~/.npm cache when available.
+      - name: Install dependencies
+        working-directory: booking-app
+        run: npm ci
+
+      - name: Write setup-node summary
+        run: |
+          {
+            echo "## setup-node: node-version-file + cache"
+            echo "| Input | Value |"
+            echo "|-------|-------|"
+            echo "| \`node-version-file\` | \`booking-app/.nvmrc\` → Node $(node --version) |"
+            echo "| \`cache\` | \`npm\` — caches \`~/.npm\` (registry cache, NOT node_modules) |"
+            echo "| Cache key basis | \`hashFiles('booking-app/package-lock.json')\` |"
+            echo ""
+            echo "**Why node-version-file?** One place to change Node version:"
+            echo "update \`.nvmrc\` and local tooling (nvm/volta) + CI both pick it up."
+          } >> $GITHUB_STEP_SUMMARY
+
+  # actions/cache — manual cache with key / restore-keys
+  manual-cache-demo:
+    name: "actions/cache: key + restore-keys"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The id lets you read step outputs later.
+      - name: Restore node_modules from cache
+        id: cache-nm
+        uses: actions/cache@v6
+        with:
+          path: booking-app/node_modules
+          key: nm-${{ runner.os }}-${{ hashFiles('booking-app/package-lock.json') }}
+          # Fallback keys (prefix match, newest match wins).
+          restore-keys: |
+            nm-${{ runner.os }}-
+
+      - name: Show cache hit/miss result
+        run: |
+          echo "cache-hit = '${{ steps.cache-nm.outputs.cache-hit }}'"
+          echo ""
+          if [ "${{ steps.cache-nm.outputs.cache-hit }}" == "true" ]; then
+            echo "EXACT HIT: node_modules fully restored. Skipping npm ci."
+          else
+            echo "MISS (or partial via restore-keys): running npm ci."
+          fi
+
+      - name: Install dependencies (skipped on exact cache hit)
+        if: steps.cache-nm.outputs.cache-hit != 'true'
+        working-directory: booking-app
+        run: npm ci
+
+      - name: Write cache summary
+        run: |
+          {
+            echo "## Manual Cache: key + restore-keys"
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Exact key | \`nm-${{ runner.os }}-${{ hashFiles('booking-app/package-lock.json') }}\` |"
+            echo "| cache-hit | \`${{ steps.cache-nm.outputs.cache-hit }}\` |"
+            echo "| Fallback restore-key | \`nm-${{ runner.os }}-\` |"
+            echo ""
+            echo "**Cache hit flow:** exact key match → restore \`node_modules\` → skip \`npm ci\`"
+            echo ""
+            echo "**Cache miss flow:** exact miss → try prefix restore-key → partial restore"
+            echo "→ \`npm ci\` (only downloads diff) → save new cache entry under exact key"
+          } >> $GITHUB_STEP_SUMMARY
+
+  # actions/upload-artifact — build TypeScript and share dist/
+  build-artifact:
+    name: "upload-artifact: build and share dist/"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: 'booking-app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'booking-app/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: booking-app
+        run: npm ci
+
+      - name: Build TypeScript → dist/
+        working-directory: booking-app
+        run: npm run build
+
+      - name: Verify build output before upload
+        run: |
+          echo "=== Contents of booking-app/dist/ ==="
+          ls -la booking-app/dist/
+
+      - name: Upload dist/ artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ github.sha }}
+          path: booking-app/dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  # actions/download-artifact — consume the artifact from build-artifact
+  consume-artifact:
+    name: "download-artifact: verify shared dist/"
+    runs-on: ubuntu-latest
+    needs: build-artifact
+    steps:
+      - name: Download dist/ artifact (no checkout needed — artifact has what we need)
+        uses: actions/download-artifact@v8
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+
+      - name: Verify artifact contents
+        run: |
+          echo "=== Downloaded dist/ on a fresh runner (no source code here) ==="
+          ls -la dist/
+          echo ""
+          echo "Build artifact confirmed — deploy job can use this without rebuilding."
+
+      - name: Write artifact summary
+        run: |
+          FILE_COUNT=$(ls dist/ | wc -l | tr -d ' ')
+          {
+            echo "## Artifact: upload → download"
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Artifact name | \`dist-${{ github.sha }}\` |"
+            echo "| Files in dist/ | $FILE_COUNT |"
+            echo "| Retention | 7 days |"
+            echo ""
+            echo "**Key point:** the build ran in job \`build-artifact\`; this job"
+            echo "(\`consume-artifact\`) ran on a *different* runner with an empty filesystem."
+            echo "The artifact bridged the gap — no rebuild needed."
+          } >> $GITHUB_STEP_SUMMARY
+
+  # Docker pipeline — setup-buildx + metadata + build-push
+  docker-build:
+    name: "Docker: buildx + metadata + build-push"
+    runs-on: ubuntu-latest
+    needs: build-artifact
+    steps:
+      - uses: actions/checkout@v7
+
+      # Creates a docker buildx builder instance
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Generate image tags + labels from git context
+      - name: Extract Docker metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Show generated tags and labels
+        run: |
+          echo "=== Generated tags ==="
+          echo "${{ steps.meta.outputs.tags }}"
+          echo ""
+          echo "=== Generated labels (OCI standard) ==="
+          echo "${{ steps.meta.outputs.labels }}"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: booking-app
+          file: booking-app/deploy/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha  #restore Docker layer cache from GHA cache
+          cache-to: type=gha,mode=max  #save ALL layers (incl. intermediate stages)
+
+      - name: Write Docker build summary
+        run: |
+          {
+            echo "## Docker Build"
+            echo "| Setting | Value |"
+            echo "|---------|-------|"
+            echo "| BuildKit | enabled via \`docker/setup-buildx-action@v4\` |"
+            echo "| Layer cache | \`type=gha,mode=max\` |"
+            echo "| Push | disabled (demo) |"
+            echo ""
+            echo "### Generated tags"
+            echo "\`\`\`"
+            echo "${{ steps.meta.outputs.tags }}"
+            echo "\`\`\`"
+            echo ""
+            echo "### How cache-from type=gha speeds up builds"
+            echo "Docker builds are layered. If \`package.json\`/\`package-lock.json\`"
+            echo "didn't change, the \`npm ci\` layer is a cache hit — BuildKit skips it."
+          } >> $GITHUB_STEP_SUMMARY
