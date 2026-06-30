@@ -50,16 +50,23 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore npm cache (save even on failure)
-        uses: actions/cache@v6
+      - id: restore
+        name: Restore npm cache
+        uses: actions/cache/restore@v6
         with:
           path: ~/.npm
           key: npm-savealways-${{ runner.os }}-${{ hashFiles('booking-app/package-lock.json') }}
           restore-keys: npm-savealways-${{ runner.os }}-
-          save-always: true
 
       - run: npm ci
       - run: npm test -- --passWithNoTests
+
+      - name: Save npm cache
+        uses: actions/cache/save@v6
+        if: always() && steps.restore.outputs.cache-hit != 'true'
+        with:
+          path: ~/.npm
+          key: ${{ steps.restore.outputs.cache-primary-key }}
 
   # Separate restore and save steps
   separate-restore-save:
