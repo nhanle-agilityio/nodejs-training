@@ -1,0 +1,168 @@
+name: Practice 09 — CI Pipeline Lint and Unit Tests
+
+on:
+  push:
+    branches: [main, 'feature/**']
+    paths-ignore: ['**.md', 'docs/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  NODE_ENV: test
+  # Dummy values so NestJS ConfigModule's Joi validation passes during module initialization in unit tests.
+  DATABASE_URL: postgres://dummy:dummy@localhost:5432/dummy
+  REDIS_URL: redis://localhost:6379
+  CLERK_SECRET_KEY: sk_test_dummy
+  STRIPE_SECRET_KEY: sk_test_dummy
+  RESEND_API_KEY: re_dummy
+  JWT_SECRET: test-secret-at-least-32-chars-long-enough
+
+defaults:
+  run:
+    working-directory: ./booking-app
+
+jobs:
+  # Lint (parallel gate 1)
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      lint-result: ${{ steps.run-lint.outputs.result }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+
+      - run: npm ci
+
+      - name: ESLint
+        id: run-lint
+        run: |
+          npm run lint
+          echo "result=passed" >> $GITHUB_OUTPUT
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+  # Unit Tests (parallel gate 2)
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      test-result: ${{ steps.run-tests.conclusion }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+
+      - run: npm ci
+
+      # --ci        → disable watch mode; error if snapshots need updating
+      # --coverage  → generate coverage report
+      # --forceExit → force exit if open handles prevent Jest from quitting cleanly
+      - name: Run Jest
+        id: run-tests
+        run: npm test -- --ci --coverage --forceExit --passWithNoTests
+
+        # steps.run-tests.outcome    = raw result  (success | failure)
+        # steps.run-tests.conclusion = result AFTER continue-on-error is applied
+        continue-on-error: true
+
+      - name: Show outcome vs conclusion
+        run: |
+          echo "outcome    = ${{ steps.run-tests.outcome }}"
+          echo "conclusion = ${{ steps.run-tests.conclusion }}"
+
+      # always() ensures coverage is uploaded even when tests fail.
+      - name: Upload coverage
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-${{ github.sha }}
+          path: booking-app/coverage/
+          retention-days: 14
+          if-no-files-found: warn
+
+      # Fail the job explicitly if tests actually failed, after coverage has been safely uploaded.
+      - name: Fail if tests failed
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
+
+  # Notify on failure
+  on-failure:
+    name: Notify Failure
+    needs: [lint, unit-test]
+    if: failure()
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Log failure details
+        run: |
+          echo "CI failed on branch: ${{ github.ref_name }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "Job results:"
+          echo "  lint:      ${{ needs.lint.result }}"
+          echo "  unit-test: ${{ needs.unit-test.result }}"
+
+  # Always runs to write the summary
+  report:
+    name: CI Report
+    needs: [lint, unit-test]
+    if: always()
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Write CI summary
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Context | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Event | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+
+  # Deploy gate (push to main only)
+  deploy-gate:
+    name: Deploy Gate (main only)
+    needs: [lint, unit-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Simulate deploy
+        run: |
+          echo "All CI gates passed on main."
+          echo "Lint result:      ${{ needs.lint.result }}"
+          echo "Unit test result: ${{ needs.unit-test.result }}"
+          echo "Ready to deploy commit ${{ github.sha }}"
