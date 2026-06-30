@@ -88,9 +88,7 @@ jobs:
           key: npm-separate-${{ runner.os }}-${{ hashFiles('booking-app/package-lock.json') }}
           restore-keys: npm-separate-${{ runner.os }}-
 
-      # Skip the install entirely on a full cache hit.
       - name: Install dependencies
-        if: steps.restore.outputs.cache-hit != 'true'
         run: npm ci
 
       - run: npm test -- --passWithNoTests
