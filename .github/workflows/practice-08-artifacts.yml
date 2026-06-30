@@ -1,0 +1,129 @@
+name: Practice 08 — Artifacts
+
+on:
+  push:
+    branches: [main, 'feature/**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+defaults:
+  run:
+    working-directory: ./booking-app
+
+jobs:
+  # Build and upload dist artifact
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ github.sha }}
+          path: |
+            booking-app/dist/
+            !booking-app/dist/**/*.map
+          retention-days: 7
+          if-no-files-found: error
+
+  # Matrix test + upload coverage per node version
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+      - run: npm ci
+      - run: npm test -- --passWithNoTests --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-node${{ matrix.node-version }}-${{ github.sha }}
+          path: booking-app/coverage/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # Collect all matrix coverage reports into one directory
+  collect-coverage:
+    name: Collect coverage reports
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-node*-${{ github.sha }}
+          merge-multiple: true
+          path: all-coverage/
+
+      - name: Show merged coverage directory
+        run: ls -la all-coverage/ 2>/dev/null || echo "No coverage files found"
+
+      - name: Write coverage summary
+        run: |
+          echo "## Coverage Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Downloaded and merged coverage from all matrix legs:" >> $GITHUB_STEP_SUMMARY
+          ls all-coverage/ 2>/dev/null | while read f; do echo "- $f"; done >> $GITHUB_STEP_SUMMARY || true
+
+  # Download dist and simulate deploy
+  deploy-preview:
+    name: Deploy Preview
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+
+      - name: Show downloaded artifact
+        run: |
+          echo "Contents of dist/ from build job:"
+          ls -la dist/ 2>/dev/null || echo "dist/ is empty"
+
+      - name: Simulate deploy
+        run: |
+          echo "Deploying dist/ for commit ${{ github.sha }} ..."
+          echo "Deploy complete."
+
+      - name: Write deploy summary
+        run: |
+          echo "## Deploy Preview" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact:** \`dist-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.event_name }} on \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY

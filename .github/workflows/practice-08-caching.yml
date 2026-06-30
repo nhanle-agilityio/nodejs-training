@@ -1,0 +1,131 @@
+name: Practice 08 — Caching
+
+on:
+  push:
+    branches: [main, 'feature/**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+defaults:
+  run:
+    working-directory: ./booking-app
+
+jobs:
+  # Explicit cache with 3-level restore-keys
+  explicit-restore-keys:
+    name: Explicit cache with restore-keys
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Restore npm cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('booking-app/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-node${{ env.NODE_VERSION }}-
+            npm-${{ runner.os }}-
+            npm-
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: npm ci
+      - run: npm run lint
+
+  # save-always — preserve cache even when tests fail
+  save-always:
+    name: Cache with save-always
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - id: restore
+        name: Restore npm cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.npm
+          key: npm-savealways-${{ runner.os }}-${{ hashFiles('booking-app/package-lock.json') }}
+          restore-keys: npm-savealways-${{ runner.os }}-
+
+      - run: npm ci
+      - run: npm test -- --passWithNoTests
+
+      - name: Save npm cache
+        uses: actions/cache/save@v6
+        if: always() && steps.restore.outputs.cache-hit != 'true'
+        with:
+          path: ~/.npm
+          key: ${{ steps.restore.outputs.cache-primary-key }}
+
+  # Separate restore and save steps
+  separate-restore-save:
+    name: Separate cache/restore and cache/save
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # actions/cache/restore only restores — it never saves.
+      - id: restore
+        name: Restore npm cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.npm
+          key: npm-separate-${{ runner.os }}-${{ hashFiles('booking-app/package-lock.json') }}
+          restore-keys: npm-separate-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - run: npm test -- --passWithNoTests
+
+      # actions/cache/save only saves — it never restores.
+      - name: Save npm cache
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.npm
+          key: ${{ steps.restore.outputs.cache-primary-key }}
+
+  # TypeScript incremental build output cache
+  tsc-incremental:
+    name: TypeScript incremental build cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+      - run: npm ci
+
+      # When tsconfig has incremental: true, tsc writes a .tsbuildinfo file
+      - name: Restore TypeScript incremental cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            booking-app/dist/
+            booking-app/.tsbuildinfo
+          key: tsc-${{ runner.os }}-${{ hashFiles('booking-app/src/**/*.ts', 'booking-app/tsconfig*.json') }}
+          restore-keys: tsc-${{ runner.os }}-
+
+      - run: npm run build
+
+      - name: Show build output size
+        run: du -sh dist/ 2>/dev/null || echo "dist/ not found"
