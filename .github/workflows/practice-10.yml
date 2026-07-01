@@ -1,0 +1,170 @@
+name: Practice 10 — E2E Tests with Service Containers
+
+on:
+  push:
+    branches: [main, 'feature/**']
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+defaults:
+  run:
+    working-directory: ./booking-app
+
+jobs:
+  # Lint (fast gate)
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  # E2E Tests (runs on runner → services via localhost)
+  e2e-test:
+    name: E2E Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NODE_ENV: test
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: booking
+      DATABASE_PASSWORD: booking
+      DATABASE_NAME: booking_test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      BULLMQ_PREFIX: booking
+      MAIL_MODE: noop
+      MAIL_FROM: test@example.com
+      CLERK_SECRET_KEY: sk_test_dummy
+      CLERK_WEBHOOK_SECRET: whsec_dummy
+      STRIPE_SECRET_KEY: sk_test_dummy
+      STRIPE_WEBHOOK_SECRET: whsec_dummy
+      STRIPE_SUCCESS_URL: http://localhost:3001/payment/success
+      STRIPE_CANCEL_URL: http://localhost:3001/payment/cancel
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: booking
+          POSTGRES_PASSWORD: booking
+          POSTGRES_DB: booking_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: booking-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        run: npm run migration:run:test
+
+      - name: Run E2E tests
+        id: e2e
+        run: npm run test:e2e
+        continue-on-error: true
+
+      - name: Upload E2E results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: e2e-results-${{ github.sha }}
+          path: |
+            booking-app/coverage/
+            booking-app/test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Fail the job explicitly if e2e actually failed, after artifacts are safe.
+      - name: Fail if E2E failed
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          echo "E2E tests failed — see the e2e-results artifact for details."
+          exit 1
+
+  # Networking demo (job runs INSIDE a container)
+  networking-demo:
+    name: Networking demo (container mode)
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: node:20-alpine
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: booking
+          POSTGRES_PASSWORD: booking
+          POSTGRES_DB: booking_test
+        # No ports mapping needed.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      # node:20-alpine has neither psql nor redis-cli — install the clients.
+      - name: Install DB/Redis clients
+        run: apk add --no-cache postgresql-client redis
+
+      - name: Verify Postgres reachable by service name
+        env:
+          PGPASSWORD: booking
+        run: psql -h postgres -p 5432 -U booking -d booking_test -c "SELECT version();"
+
+      - name: Verify Redis reachable by service name
+        run: redis-cli -h redis -p 6379 ping

@@ -21,7 +21,7 @@
     "typeorm": "typeorm-ts-node-commonjs -d ./src/database/data-source.ts",
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run",
-    "migration:run:test": "node --env-file=devenv/.env.test ./node_modules/.bin/typeorm-ts-node-commonjs migration:run -d ./src/database/data-source.ts",
+    "migration:run:test": "node --env-file-if-exists=devenv/.env.test ./node_modules/.bin/typeorm-ts-node-commonjs migration:run -d ./src/database/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show"
   },
