@@ -6,6 +6,7 @@ export const createAppRedisClient = (redis: AppConfig['redis']): Redis => {
   return new Redis({
     host: redis.host,
     port: redis.port,
+    password: redis.password,
     maxRetriesPerRequest: null,
   });
 };
