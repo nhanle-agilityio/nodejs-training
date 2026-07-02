@@ -28,7 +28,7 @@ export interface AppConfig {
     password: string;
     name: string;
   };
-  redis: { host: string; port: number };
+  redis: { host: string; port: number; password?: string };
   clerk: { secretKey: string; webhookSecret: string };
   bullmq: { prefix: string };
   mail: MailConfig;
@@ -52,6 +52,7 @@ export const loadConfiguration = (): AppConfig => ({
   redis: {
     host: process.env.REDIS_HOST ?? 'localhost',
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+    password: process.env.REDIS_PASSWORD || undefined,
   },
   clerk: {
     secretKey: process.env.CLERK_SECRET_KEY ?? '',
